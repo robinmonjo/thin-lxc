@@ -3,8 +3,8 @@
 `thin-lxc` is a command line tool that extends [LXC](http://linuxcontainers.org/). Goals are:
 
 * allow instant and lightweight creation of container using [AuFS](http://en.wikipedia.org/wiki/Aufs)
-* allow automatic packet forwarding between host and containers
-* allow automatic bind mount of host file in containers
+* automatically configure packet forwarding between host and containers (using iptables)
+* automatically configure bind mount of host file in containers
 * assign static ip to containers
 * easily provision a container with a local or remote script
 

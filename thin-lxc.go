@@ -25,12 +25,20 @@ var baseContainerPath = flag.String("b", "/var/lib/lxc/baseCN", "path to the bas
 var ports = flag.String("p", "", "port to forward host_port:cont_port")
 var bindMounts = flag.String("bm", "", "bind mount of type path_host:cont_host,...")
 
+//Container type holds basic container information
 type Container struct {
+	//BaseContainerPath: path of the container to use as basis, path is ../rootfs
+	//Path: path of the container, path is ../rootfs
+	//RoLayer: read-only layer of the container. Basically a read-only mount of BaseContainerPath
+	//WrLayer: write layer of the container. All write made in RoLayer are forwarded in WrLayer
 	BaseContainerPath, Path, RoLayer, WrLayer string
 	Rootfs string
 	ConfigPath string
 	Id, Ip, Hwaddr, Name string
+	//Port: port of the container to expose
+	//HostPort: port on the host that is bridged to Port
 	Port, HostPort int
+	//BindMounts: 
 	BindMounts map[string]string
 }
 
