@@ -15,7 +15,7 @@ import(
 	"time"
 )
 
-const VERSION = "0.1"
+const VERSION = "0.2"
 const CONTAINERS_ROOT_PATH = "/containers"
 
 /*
