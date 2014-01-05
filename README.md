@@ -28,11 +28,15 @@ thin-lxc -a destroy -id CONTAINER_ID
 
 ### Install
 
-` curl -sL https://github.com/robinmonjo/thin-lxc/archive/v0.1.tar.gz | tar -C /tmp -zxf - && go build /tmp/thin-lxc-0.1/thin-lxc.go && sudo mv thin-lxc /usr/local/bin && rm -rf /tmp/thin-lxc*`
+````bash
+ curl -sL https://github.com/robinmonjo/thin-lxc/archive/v0.1.tar.gz | tar -C /tmp -zxf - && go build /tmp/thin-lxc-0.1/thin-lxc.go && sudo mv thin-lxc /usr/local/bin && rm -rf /tmp/thin-lxc*
+````
 
 ### Create a container
 
-`thin-lxs -a create -b /var/lib/lxc/cont -id <id> -name <name> -ip <10.0.3.xxx> [-p <host_port>:<cont_port>] [-bm <host_path>:<cont_path>,<host_path>:<cont_path>,...]`
+````bash
+thin-lxs -a create -b /var/lib/lxc/cont -id <id> -name <name> -ip <10.0.3.xxx> [-p <host_port>:<cont_port>] [-bm <host_path>:<cont_path>,<host_path>:<cont_path>,...]
+````
 
 Options:
 * `-b`: the container to use as basis (created using lxc-create)
