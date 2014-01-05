@@ -260,6 +260,7 @@ func main() {
 template constants
 */
 
+// On host: /containers/id/image/config
 const CONFIG_FILE = `
 lxc.network.type=veth
 lxc.network.link=lxcbr0
@@ -314,6 +315,7 @@ lxc.mount.entry = {{$key}} {{$value}} none bind,rw 0 0
 {{end}}
 `
 
+//In container: /etc/network/ninterfaces
 const INTERFACES_FILE = `
 auto lo
 iface lo inet loopback
@@ -321,13 +323,17 @@ auto eth0
 iface eth0 inet manual
 `
 
+//In container: /etc/hosts
 const HOSTS_FILE = `
 127.0.0.1 localhost {{.Name}}
 `
+
+//In container: /etc/hostname
 const HOSTNAME_FILE = `
 {{.Name}}
 `
 
+//In container: /etc/init/setup-gateway.conf
 const SETUP_GATEWAY_FILE = `
 description "setup gateway"
 start on startup
