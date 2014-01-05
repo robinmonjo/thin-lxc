@@ -65,13 +65,11 @@ This will basically just clean up the filesystem (`/containers/container_id`). I
 * use the default network bridge provided by LXC on ubuntu
 * ip address given to containers must be in 10.0.3.0/24
 * container must use upstart (not system.d)
-* containers will be created in `/containers` (will add an option later to choose where to set the root path for all containers)
+* containers will be created in `/containers`
 
 ### TODO
 
 * complete test suite
-* implement provision
 * test behaviour after reboot
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
-* test using a container created with `thin-lxc` as base container for another one

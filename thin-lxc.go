@@ -152,6 +152,10 @@ func (c Container) aufsUnmount(tryCount int) {
 	}
 }
 
+func (c Container) isMounted() bool {
+	return fileExists(c.Rootfs)
+}
+
 func (c Container) marshall() {
 	b, err := json.Marshal(c)
 	if err != nil {
@@ -170,12 +174,6 @@ func (c Container) isRunning() bool {
 	}
 	state := strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
 	return state != "STOPPED"
-}
-
-func (c Container) chroot(string command) {
-	if err := exec.Command("chroot", c.Rootfs, "/bin/bash", "-c", "'command'").Run(); err != nil {
-		log.Fatal(err)
-	}
 }
 
 func (c Container) create() {
@@ -200,6 +198,13 @@ func (c Container) destroy() {
 	c.aufsUnmount(5)
 	c.cleanupFS()
 	c.unforwardPort()
+}
+
+func (c Container) reload() {
+	if c.isMounted() == false {
+		c.aufsMount()
+	}
+	c.forwardPort()
 }
 
 /*
@@ -306,6 +311,21 @@ func destroy() {
 	c.destroy()
 }
 
+func reload() {
+	//after a reboot, AuFS mount and iptables rules will be deleted, reload will reset everything
+	dirs, err := ioutil.ReadDir(CONTAINERS_ROOT_PATH)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i := range dirs {
+		dir := dirs[i]
+		if fileExists(CONTAINERS_ROOT_PATH + "/" + dir.Name() + ".metadata.json") {
+			c := unmarshall(dir.Name())
+			c.reload()
+		}
+	}
+}
+
 /*
 main method
 */
@@ -320,6 +340,8 @@ func main() {
 		create()
 	} else if *aFlag == "destroy" {
 		destroy()
+	} else if *aFlag == "reload" {
+		reload()
 	} else {
 		log.Fatal("Unknown action ", *aFlag)
 	}

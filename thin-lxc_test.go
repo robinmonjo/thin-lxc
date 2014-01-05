@@ -104,15 +104,15 @@ func Test_aufsMount(t *testing.T) {
 	for i := range containers {
 		c := containers[i]
 		c.setupOnFS()
-		if fileExists(c.Rootfs) {
+		if c.isMounted() {
 			t.Error("aufs mount already performed ?")
 		}
 		c.aufsMount()
-		if fileExists(c.Rootfs) == false {
+		if c.isMounted() == false {
 			t.Error("aufs mount failed")
 		}
 		c.aufsUnmount(1)
-		if fileExists(c.Rootfs) {
+		if c.isMounted() {
 			t.Error("aufs unmount failed")
 		}
 		c.cleanupFS()
