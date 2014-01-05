@@ -100,7 +100,7 @@ func (c Container) executeTemplate(content string, path string) {
 	}
 }
 
-func (c Container) setup() {
+func (c Container) configureFiles() {
 	c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config")
 	c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces")
 	c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts")
@@ -225,7 +225,7 @@ func create() {
 	c.setupOnFS()
 	c.marshall()
 	c.aufsMount()
-	c.setup()
+	c.configureFiles()
 	c.forwardPort(true)
 	fmt.Println("Container created start using: \"lxc-start -n", c.Name,"-f", c.ConfigPath, "-d\"")
 }
