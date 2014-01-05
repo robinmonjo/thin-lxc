@@ -80,10 +80,7 @@ func (c Container) cleanupFS() {
 }
 
 func (c Container) iptablesRuleDo(action string) error {
-	cmd := exec.Command("iptables", "-t", "nat", action,
-	 										"PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24",
-	 										"--dport", strconv.Itoa(c.HostPort), "-j", "DNAT",
-	 										"--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
+	cmd := exec.Command("iptables", "-t", "nat", action, "PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24", "--dport", strconv.Itoa(c.HostPort), "-j", "DNAT", "--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
 	return cmd.Run()
 }
 

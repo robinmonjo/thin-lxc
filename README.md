@@ -57,7 +57,7 @@ This will create a container in `/containers`. File system will be like :
 Options:
 * `-id`: id of the container to destroy.
 
-This will basically just clean up the filesystem (`/containers/container_id`). It is user responsibility to stop the container before (`lxc-shutdown / lxc-stop`)
+This will basically just clean up the filesystem (`/containers/container_id`). It is user responsibility to stop the container before (`lxc-shutdown` / `lxc-stop`)
 
 ### Reload
 `thin-lxc -a reload`
