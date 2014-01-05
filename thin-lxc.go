@@ -316,7 +316,7 @@ func reload() {
 	}
 	for i := range dirs {
 		dir := dirs[i]
-		if fileExists(CONTAINERS_ROOT_PATH + "/" + dir.Name() + ".metadata.json") {
+		if fileExists(CONTAINERS_ROOT_PATH + "/" + dir.Name() + "/.metadata.json") {
 			c := unmarshall(dir.Name())
 			c.reload()
 		}
