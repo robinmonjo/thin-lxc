@@ -5,7 +5,7 @@ Vagrant::Config.run do |config|
   config.vm.provision :shell, :inline => <<EOF
 
 sudo apt-get update -qq
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -q -y golang lxc
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -q -y golang lxc curl
 sudo lxc-create -t ubuntu -n baseCN #create a base container
 
 EOF
