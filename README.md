@@ -83,5 +83,6 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 ### TODO
 
 * complete test suite
+* support multiple port forwarding
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
