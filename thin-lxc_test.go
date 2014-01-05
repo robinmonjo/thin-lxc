@@ -14,11 +14,22 @@ const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 const HWADDR = "00:11:22:33:44"
 
 var c Container = Container {
-	BASE_CONT_PATH, CONTAINERS_ROOT_PATH + "/" + ID, CONTAINERS_ROOT_PATH + "/" + ID + "/image", CONTAINERS_ROOT_PATH + "/" + ID + "/wlayer",
+	BASE_CONT_PATH,
+	CONTAINERS_ROOT_PATH + "/" + ID,
+
+	CONTAINERS_ROOT_PATH + "/" + ID + "/image",
+	CONTAINERS_ROOT_PATH + "/" + ID + "/wlayer",
 	CONTAINERS_ROOT_PATH + "/" + ID + "/image/rootfs",
 	CONTAINERS_ROOT_PATH + "/" + ID + "/image/rootfs/config",
-	ID, IP, HWADDR, NAME,
-	CONT_PORT, HOST_PORT,
+
+	ID,
+	IP,
+	HWADDR,
+	NAME,
+
+	CONT_PORT,
+	HOST_PORT,
+	
 	map[string]string{
 			"/var/log": "/etc/lol",
 			"/var/log1": "/etc/lol1",

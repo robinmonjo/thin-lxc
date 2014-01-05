@@ -16,29 +16,41 @@ import(
 const VERSION = "0.1"
 const CONTAINERS_ROOT_PATH = "/containers"
 
-var version = flag.Bool("v", false, "print version and exit")
-var action = flag.String("s", "", "action to perform")
-var contId = flag.String("id", "", "id of the container")
-var contIp = flag.String("ip", "", "ip of the container")
-var contName = flag.String("name", "", "name (and hostname) of the container")
-var baseContainerPath = flag.String("b", "/var/lib/lxc/baseCN", "path to the base container rootfs")
-var ports = flag.String("p", "", "port to forward host_port:cont_port")
-var bindMounts = flag.String("bm", "", "bind mount of type path_host:cont_host,...")
+/*
+Flag parsing
+*/
 
-//Container type holds basic container information
+var vFlag = flag.Bool("v", false, "print version and exit")
+
+var aFlag = flag.String("s", "", "action to perform")
+var idFlag = flag.String("id", "", "id of the container")
+var ipFlag = flag.String("ip", "", "ip of the container")
+var nFlag = flag.String("name", "", "name (and hostname) of the container")
+var bFlag = flag.String("b", "/var/lib/lxc/baseCN", "path to the base container rootfs")
+var pFlag = flag.String("p", "", "port to forward host_port:cont_port")
+var mFlag = flag.String("bm", "", "bind mount of type path_host:cont_host,...")
+
+/*
+Container type + methods
+*/
+
 type Container struct {
-	//BaseContainerPath: path of the container to use as basis, path is ../rootfs
-	//Path: path of the container, path is ../rootfs
-	//RoLayer: read-only layer of the container. Basically a read-only mount of BaseContainerPath
-	//WrLayer: write layer of the container. All write made in RoLayer are forwarded in WrLayer
-	BaseContainerPath, Path, RoLayer, WrLayer string
+	BaseContainerPath string 
+	Path string
+
+	RoLayer string 
+	WrLayer string
 	Rootfs string
 	ConfigPath string
-	Id, Ip, Hwaddr, Name string
-	//Port: port of the container to expose
-	//HostPort: port on the host that is bridged to Port
-	Port, HostPort int
-	//BindMounts: 
+
+	Id string
+	Ip string
+	Hwaddr string 
+	Name string
+
+	Port int
+	HostPort int
+
 	BindMounts map[string]string
 }
 
@@ -51,13 +63,11 @@ func (c Container) IpConfig() string {
 }
 
 func (c Container) setupOnFS() {
-	err := os.MkdirAll(c.RoLayer, 0700)
-	if err != nil {
-		log.Fatal("Unable to create ", c.RoLayer, err)
+	if err := os.MkdirAll(c.RoLayer, 0700); err != nil {
+		log.Fatal(err)
 	}
-	err = os.MkdirAll(c.WrLayer, 0700)
-	if err != nil {
-		log.Fatal("Unable to create ", c.WrLayer, err)
+	if err := os.MkdirAll(c.WrLayer, 0700); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -70,29 +80,28 @@ func (c Container) forwardPort(add bool) {
 		t = "-D"
 	}
 	cmd := exec.Command("iptables", "-t", "nat", t, "PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24", "--dport", strconv.Itoa(c.HostPort), "-j", "DNAT", "--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Unable to forward port ", err)
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
 
 func (c Container) executeTemplate(content string, path string) {
 	tmpl, err := template.New("tmpl").Parse(content)
 	if err != nil {
-		log.Fatal("Unable to parse template ", err)
+		log.Fatal(err)
 	}
 	file, err := os.Create(path)
 	if err != nil {
-		log.Fatal("Unable to create file ", err)
+		log.Fatal(err)
 	}
 	defer file.Close()
-	err = tmpl.Execute(file, c)
-	if err != nil {
-		log.Fatal("Unable to populate template ", err)
+	if err = tmpl.Execute(file, c); err != nil {
+		log.Fatal(err)
 	}
 }
 
-func (c Container) setupNetworking() {
+func (c Container) setup() {
+	c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config")
 	c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces")
 	c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts")
 	c.executeTemplate(HOSTNAME_FILE, c.Rootfs + "/etc/hostname")
@@ -101,118 +110,60 @@ func (c Container) setupNetworking() {
 
 func (c Container) destroy() {
 	if c.isRunning() {
-		log.Fatal("Container is running. Stop it before destroy it")
+		log.Fatal("Container is running. Stop it before destroying it")
 	}
 	c.aufsUnmount()
-	err := exec.Command("rm", "-rf", c.Path).Run()
-	if err != nil {
-		log.Fatal("Unable to rm container", err)
+	if err := exec.Command("rm", "-rf", c.Path).Run(); err != nil {
+		log.Fatal(err)
 	}
 	c.forwardPort(false)
 }
 
 func (c Container) aufsMount() {
 	mnt := "br=" + c.WrLayer + "=rw:" + c.BaseContainerPath + "=ro"
-	err := exec.Command("mount", "-t", "aufs", "-o", mnt, "none", c.RoLayer).Run()
-	if err != nil {
-		log.Fatal("Unable to AuFS mount", err)
+	if err := exec.Command("mount", "-t", "aufs", "-o", mnt, "none", c.RoLayer).Run(); err != nil {
+		log.Fatal(err)
 	}
 }
 
 func (c Container) aufsUnmount() {
-	err := exec.Command("umount", c.RoLayer).Run()
-	if err != nil {
-		log.Fatal("Unable to umount ro layer ", err)
+	if err := exec.Command("umount", c.RoLayer).Run(); err != nil {
+		log.Fatal(err)
 	}
 }
 
 func (c Container) marshall() {
 	b, err := json.Marshal(c)
 	if err != nil {
-		log.Fatal("Unable to marshall container ", err)
+		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644)
-	if err != nil {
-		log.Fatal("Unable to write container metadata ", err)
+	if err = ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644); err != nil {
+		log.Fatal(err)
 	}
-}
-
-func (c Container) createConfig() {
-	c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config")
-}
-
-func unmarshall(id string) Container {
-	b, err := ioutil.ReadFile(CONTAINERS_ROOT_PATH + "/" + id + "/.metadata.json")
-	if err != nil {
-		log.Fatal("Unable to read container metadata ", err)
-	}
-	var c Container
-	err = json.Unmarshal(b, &c)
-	if err != nil {
-		log.Fatal("Unable to unmarshall metadata ", err)
-	}
-	return c
 }
 
 func (c Container) isRunning() bool {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
-		log.Fatal("Unable to run lxc-info")
+		log.Fatal(err)
 	}
 	state := strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
 	return state != "STOPPED"
 }
 
-func provision() {
-
-}
-
-func create() {
-	contPath := CONTAINERS_ROOT_PATH + "/" + *contId
-	port := 0
-	hostPort := 0
-	if len(*ports) > 0 {
-		hostPort, _ = strconv.Atoi(strings.Split(*ports, ":")[0])
-		port, _ = strconv.Atoi(strings.Split(*ports, ":")[1])
+/*
+Helper methods
+*/
+func unmarshall(id string) Container {
+	b, err := ioutil.ReadFile(CONTAINERS_ROOT_PATH + "/" + id + "/.metadata.json")
+	if err != nil {
+		log.Fatal(err)
 	}
-	mounts := make(map[string]string)
-	c := Container{
-		*baseContainerPath, contPath, contPath + "/image", contPath + "/wlayer",
-		contPath + "/image/rootfs",
-		contPath + "/image/config",
-		*contId, *contIp, "00:11:22:33:44", *contName,
-		port, hostPort,
-		mounts,
+	var c Container
+	if err = json.Unmarshal(b, &c); err != nil {
+		log.Fatal(err)
 	}
-
-	if len(*bindMounts) > 0 {
-		arr := strings.Split(*bindMounts, ",")
-		for i := range arr {
-			hostMountPath := strings.Split(arr[i], ":")[0]
-			contMountPath := c.Rootfs + strings.Split(arr[i], ":")[1]
-			if fileExists(contMountPath) == false {
-				os.MkdirAll(contMountPath)
-			}
-			c.BindMounts[strings.Split(arr[i], ":")[0]] = c.Rootfs + strings.Split(arr[i], ":")[1]
-		}
-	}
-
-	if fileExists(c.Rootfs) {
-		log.Fatal("Container with such id already exists")
-	}
-
-	c.setupOnFS()
-	c.marshall()
-	c.aufsMount()
-	c.createConfig()
-	c.setupNetworking()
-	c.forwardPort(true)
-	fmt.Println("Container created start using lxc-start -n ", c.Name, " -f ", c.ConfigPath, " -d")
-}
-
-func destroy() {
-	c := unmarshall(*contId)
-	c.destroy()
+	return c
 }
 
 func fileExists(path string) bool {
@@ -220,22 +171,94 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
+/*
+Action methods
+*/
+
+func provision() {
+
+}
+
+func create() {
+	contPath := CONTAINERS_ROOT_PATH + "/" + *idFlag
+	port := 0
+	hostPort := 0
+	if len(*pFlag) > 0 {
+		hostPort, _ = strconv.Atoi(strings.Split(*pFlag, ":")[0])
+		port, _ = strconv.Atoi(strings.Split(*pFlag, ":")[1])
+	}
+
+	c := Container{
+		*bFlag,          //BaseContainerPath
+		contPath,                    //Path
+
+		contPath + "/image",         //RoLayer 
+		contPath + "/wlayer",        //RwLayer
+		contPath + "/image/rootfs",  //Rootfs
+		contPath + "/image/config",  //ConfigPath
+
+		*idFlag,                     //Id
+		*ipFlag,                     //Ip
+		"00:11:22:33:44",            //Hwaddr
+		*nFlag,                   //Name
+		port,                        //Port
+		hostPort,                    //HostPort
+		make(map[string]string),     //BindMounts
+	}
+
+	if fileExists(c.Rootfs) {
+		log.Fatal("Container with such id already exists")
+	}
+
+	if len(*mFlag) > 0 {
+		arr := strings.Split(*mFlag, ",")
+		for i := range arr {
+			hostMountPath := strings.Split(arr[i], ":")[0]
+			contMountPath := c.Rootfs + strings.Split(arr[i], ":")[1]
+			if fileExists(contMountPath) == false {
+				os.MkdirAll(contMountPath, 0700)
+			}
+			c.BindMounts[hostMountPath] = contMountPath
+		}
+	}
+
+	c.setupOnFS()
+	c.marshall()
+	c.aufsMount()
+	c.setup()
+	c.forwardPort(true)
+	fmt.Println("Container created start using: \"lxc-start -n", c.Name,"-f", c.ConfigPath, "-d\"")
+}
+
+func destroy() {
+	c := unmarshall(*idFlag)
+	c.destroy()
+}
+
+/*
+main method
+*/
+
 func main() {
 	flag.Parse()
-	if *version {
+	if *vFlag {
 		fmt.Println(VERSION)
 		return
 	}
-	if *action == "provision" {
+	if *aFlag == "provision" {
 		provision()
-	} else if *action == "create" {
+	} else if *aFlag == "create" {
 		create()
-	} else if *action == "destroy" {
+	} else if *aFlag == "destroy" {
 		destroy()
 	} else {
-		log.Fatal("Unknown action ", action)
+		log.Fatal("Unknown action ", *aFlag)
 	}
 }
+
+/*
+template constants
+*/
 
 const CONFIG_FILE = `
 lxc.network.type=veth
