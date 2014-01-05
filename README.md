@@ -1,6 +1,6 @@
 ## thin-lxc
 
-`thin-lxc` is a command line tool that extends [LXC](http://linuxcontainers.org/). Goals are:
+`thin-lxc` is a command line tool written in Go that extends [LXC](http://linuxcontainers.org/). Goals are:
 
 * allow instant and lightweight creation of container using [AuFS](http://en.wikipedia.org/wiki/Aufs)
 * automatically configure packet forwarding between host and containers (using iptables)
