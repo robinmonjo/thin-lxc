@@ -86,7 +86,7 @@ func (c Container) forwardPort(add bool) {
 }
 
 func (c Container) executeTemplate(content string, path string) {
-	tmpl, err := template.New("tmpl").Parse(content)
+	tmpl, err := template.New("thin-lxc").Parse(content)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func (c Container) executeTemplate(content string, path string) {
 		log.Fatal(err)
 	}
 	defer file.Close()
-	if err = tmpl.Execute(file, c); err != nil {
+	if err := tmpl.Execute(file, c); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -137,7 +137,7 @@ func (c Container) marshall() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err = ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644); err != nil {
+	if err := ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -180,7 +180,7 @@ func provision() {
 }
 
 func create() {
-	contPath := CONTAINERS_ROOT_PATH + "/" + *idFlag
+	path := CONTAINERS_ROOT_PATH + "/" + *idFlag
 	port := 0
 	hostPort := 0
 	if len(*pFlag) > 0 {
@@ -189,18 +189,18 @@ func create() {
 	}
 
 	c := Container{
-		*bFlag,          //BaseContainerPath
-		contPath,                    //Path
-
-		contPath + "/image",         //RoLayer 
-		contPath + "/wlayer",        //RwLayer
-		contPath + "/image/rootfs",  //Rootfs
-		contPath + "/image/config",  //ConfigPath
+		*bFlag,                      //BaseContainerPath
+		path,                        //Path
+    
+		path + "/image",             //RoLayer 
+		path + "/wlayer",            //RwLayer
+		path + "/image/rootfs",      //Rootfs
+		path + "/image/config",      //ConfigPath
 
 		*idFlag,                     //Id
 		*ipFlag,                     //Ip
 		"00:11:22:33:44",            //Hwaddr
-		*nFlag,                   //Name
+		*nFlag,                      //Name
 		port,                        //Port
 		hostPort,                    //HostPort
 		make(map[string]string),     //BindMounts
