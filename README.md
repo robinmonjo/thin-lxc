@@ -14,7 +14,7 @@
 lxc-create -t ubuntu -n baseCN
 
 #create a container from the base container instantely
-thin-lxc -s create -id CONTAINER_ID -name myContainer -ip 10.0.3.67 -p 3000:3010 -bm /app/myApp:/app,app/myApp/log:/log
+thin-lxc -a create -b /var/lib/lxc/baseCN -id CONTAINER_ID -n myContainer -ip 10.0.3.67 -p 3000:3010 -m /app/myApp:/app,app/myApp/log:/log
 
 #start the new container
 lxc-start -n myContainer -f /containers/CONTAINER_ID/image/config -d
@@ -23,20 +23,20 @@ lxc-start -n myContainer -f /containers/CONTAINER_ID/image/config -d
 
 lxc-shutdown -n myContainer
 
-thin-lxc -s destroy -id CONTAINER_ID
+thin-lxc -a destroy -id CONTAINER_ID
 ````
 
 ### Create a container
 
-`thin-lxs -s create -b /var/lib/lxc/cont -id <id> -name <name> -ip <10.0.3.xxx> [-p <host_port>:<cont_port>] [-bm <host_path>:<cont_path>,<host_path>:<cont_path>,...]`
+`thin-lxs -a create -b /var/lib/lxc/cont -id <id> -name <name> -ip <10.0.3.xxx> [-p <host_port>:<cont_port>] [-bm <host_path>:<cont_path>,<host_path>:<cont_path>,...]`
 
 Options:
 * `-b`: the container to use as basis (created using lxc-create)
 * `-id`: a unique id
-* `-name`: name of the container to use with LXC `-n` option and container hostname
+* `-n`: name of the container to use with LXC `-n` option and container hostname
 * `-ip`: a static ip that must be in 10.0.3.0/24
 * `-p`: port to forward e.g: `3000:3010` will forward packets coming on host:3000 to container:3010
-* `-bm`: bind mount points e.g: `/home/ubuntu/app:/app,/home/ubuntu/app/log:/var/log` will mount host's files/folders `/home/ubuntu/app` and `/home/ubuntu/app/log` respectively to `/app` and `/var/log` inside the container.
+* `-m`: bind mount points e.g: `/home/ubuntu/app:/app,/home/ubuntu/app/log:/var/log` will mount host's files/folders `/home/ubuntu/app` and `/home/ubuntu/app/log` respectively to `/app` and `/var/log` inside the container.
 
 This will create a container in `/containers`. File system will be like :
 
@@ -52,12 +52,17 @@ This will create a container in `/containers`. File system will be like :
 
 ### Destroy a container
 
-`thin-lxc -s destroy -id <id>`
+`thin-lxc -a destroy -id <id>`
 
 Options:
 * `-id`: id of the container to destroy.
 
 This will basically just clean up the filesystem (`/containers/container_id`). It is user responsibility to stop the container before (`lxc-shutdown / lxc-stop`)
+
+### Reload
+`thin-lxc -a reload`
+
+After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be deleted. Running `reload` will re-setup everything in place. A good idea is to create an upstart script to launch this command at boot time.
 
 ### Limitations
 
