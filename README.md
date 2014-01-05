@@ -50,13 +50,16 @@ This will create a container in `/containers`. File system will be like :
 
 ````
 /containers
-	container_id/
-		image/     #read only clone of the container used as basis
+	<container_id>/
+		<container_name>/     #read only clone of the container used as basis
 			config   
 			fstab
 			rootfs/  
-		wlayer/    #all write on image are forwarded here (AuFS magic)
+		.wlayer/              #all write on container_name are forwarded here (AuFS magic)
+		.metadata.json        #info about the containers (needed by thin-lxc)
 ````
+
+What you are interested in is inside `<container_id>/<container_name>`. In this directory you will find what you find inside `/var/lib/lxc/<container_name>` after a basic `lxc-create`. You can edit the config and do whatever you will do in a "classic" container.
 
 ### Destroy a container
 

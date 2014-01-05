@@ -25,10 +25,10 @@ var c1 Container = Container {
 	BASE_CONT_PATH,
 	CONTAINERS_ROOT_PATH + "/" + ID,
 
-	CONTAINERS_ROOT_PATH + "/" + ID + "/image",
-	CONTAINERS_ROOT_PATH + "/" + ID + "/wlayer",
-	CONTAINERS_ROOT_PATH + "/" + ID + "/image/rootfs",
-	CONTAINERS_ROOT_PATH + "/" + ID + "/image/config",
+	CONTAINERS_ROOT_PATH + "/" + ID + "/" + NAME,
+	CONTAINERS_ROOT_PATH + "/" + ID + "/.wlayer",
+	CONTAINERS_ROOT_PATH + "/" + ID + "/" + NAME + "/rootfs",
+	CONTAINERS_ROOT_PATH + "/" + ID + "/" + NAME + "/config",
 
 	ID,
 	IP,

@@ -274,21 +274,21 @@ func create() {
 	hostPort, port := parsePortsArg(*pFlag)
 
 	c := Container{
-		*bFlag,                      //BaseContainerPath
-		path,                        //Path
+		*bFlag,                               //BaseContainerPath
+		path,                                 //Path
     
-		path + "/image",             //RoLayer 
-		path + "/wlayer",            //RwLayer
-		path + "/image/rootfs",      //Rootfs
-		path + "/image/config",      //ConfigPath
+		path + "/" + *nFlag,                  //RoLayer 
+		path + "/.wlayer",                    //RwLayer
+		path + "/" + *nFlag + "/rootfs",      //Rootfs
+		path + "/" + *nFlag + "/config",      //ConfigPath
 
-		*idFlag,                     //Id
-		*ipFlag,                     //Ip
-		randomHwaddr(),              //Hwaddr
-		*nFlag,                      //Name
-		port,                        //Port
-		hostPort,                    //HostPort
-		parseBindMountsArg(*mFlag),  //BindMounts
+		*idFlag,                              //Id
+		*ipFlag,                              //Ip
+		randomHwaddr(),                       //Hwaddr
+		*nFlag,                               //Name
+		port,                                 //Port
+		hostPort,                             //HostPort
+		parseBindMountsArg(*mFlag),           //BindMounts
 	}
 
 	if fileExists(c.Rootfs) {
