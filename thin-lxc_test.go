@@ -29,7 +29,7 @@ var c Container = Container {
 
 	CONT_PORT,
 	HOST_PORT,
-	
+
 	map[string]string{
 			"/var/log": "/etc/lol",
 			"/var/log1": "/etc/lol1",
@@ -67,8 +67,8 @@ func Test_isRunning(t *testing.T) {
 }
 
 func Test_portForwarding(t *testing.T) {
-	c.forwardPort(true)
-	c.forwardPort(false)
+	c.forwardPort()
+	c.unforwardPort()
 	//TODO check that the rule is actually added and removed
 }
 

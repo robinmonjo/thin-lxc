@@ -11,6 +11,8 @@ import(
 	"strconv"
 	"strings"
 	"text/template"
+	"math/rand"
+	"time"
 )
 
 const VERSION = "0.1"
@@ -71,18 +73,29 @@ func (c Container) setupOnFS() {
 	}
 }
 
-func (c Container) forwardPort(add bool) {
+func (c Container) iptablesRuleDo(action string) error {
+	cmd := exec.Command("iptables", "-t", "nat", action,
+	 										"PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24",
+	 										"--dport", strconv.Itoa(c.HostPort), "-j", "DNAT",
+	 										"--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
+	return cmd.Run()
+}
+
+func (c Container) forwardPort() {
 	if c.Port == 0 && c.HostPort == 0 {
 		return
 	}
-	t := "-A"
-	if !add {
-		t = "-D"
+	if err := c.iptablesRuleDo("-C"); err == nil {
+		log.Fatal("Trying to add iptables rule that already exists")
 	}
-	cmd := exec.Command("iptables", "-t", "nat", t, "PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24", "--dport", strconv.Itoa(c.HostPort), "-j", "DNAT", "--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
-	if err := cmd.Run(); err != nil {
-		log.Fatal(err)
+	c.iptablesRuleDo("-A")
+}
+
+func (c Container) unforwardPort() {
+	if err := c.iptablesRuleDo("-C"); err != nil { //rule doesn't exists
+		return
 	}
+	c.iptablesRuleDo("-D")
 }
 
 func (c Container) executeTemplate(content string, path string) {
@@ -116,7 +129,7 @@ func (c Container) destroy() {
 	if err := exec.Command("rm", "-rf", c.Path).Run(); err != nil {
 		log.Fatal(err)
 	}
-	c.forwardPort(false)
+	c.unforwardPort()
 }
 
 func (c Container) aufsMount() {
@@ -171,6 +184,15 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
+func randomHwaddr() string {
+	rand.Seed(time.Now().Unix())
+	arr := []string{"00:16:3e"}
+	for i := 0; i < 3; i++ {
+		arr = append(arr, fmt.Sprintf("%0.2x", rand.Intn(256)))
+	}
+	return strings.Join(arr, ":")
+}
+
 /*
 Action methods
 */
@@ -199,7 +221,7 @@ func create() {
 
 		*idFlag,                     //Id
 		*ipFlag,                     //Ip
-		"00:11:22:33:44",            //Hwaddr
+		randomHwaddr(),              //Hwaddr
 		*nFlag,                      //Name
 		port,                        //Port
 		hostPort,                    //HostPort
@@ -226,7 +248,7 @@ func create() {
 	c.marshall()
 	c.aufsMount()
 	c.configureFiles()
-	c.forwardPort(true)
+	c.forwardPort()
 	fmt.Println("Container created start using: \"lxc-start -n", c.Name,"-f", c.ConfigPath, "-d\"")
 }
 
