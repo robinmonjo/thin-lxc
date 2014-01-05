@@ -27,10 +27,10 @@ var vFlag = flag.Bool("v", false, "print version and exit")
 var aFlag = flag.String("a", "", "action to perform")
 var idFlag = flag.String("id", "", "id of the container")
 var ipFlag = flag.String("ip", "", "ip of the container")
-var nFlag = flag.String("name", "", "name (and hostname) of the container")
+var nFlag = flag.String("n", "", "name (and hostname) of the container")
 var bFlag = flag.String("b", "/var/lib/lxc/baseCN", "path to the base container rootfs")
 var pFlag = flag.String("p", "", "port to forward host_port:cont_port")
-var mFlag = flag.String("bm", "", "bind mount of type path_host:cont_host,...")
+var mFlag = flag.String("m", "", "bind mount of type path_host:cont_host,...")
 
 /*
 Container type + methods
@@ -172,6 +172,12 @@ func (c Container) isRunning() bool {
 	return state != "STOPPED"
 }
 
+func (c Container) chroot(string command) {
+	if err := exec.Command("chroot", c.Rootfs, "/bin/bash", "-c", "'command'").Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func (c Container) create() {
 	for hostMntPath, contMntPath := range c.BindMounts {
 		if fileExists(hostMntPath) == false {
@@ -261,10 +267,6 @@ func parseBindMountsArg(mounts string) (bindMounts map[string]string) {
 Action methods
 */
 
-func provision() {
-
-}
-
 func create() {
 	path := CONTAINERS_ROOT_PATH + "/" + *idFlag
 	hostPort, port := parsePortsArg(*pFlag)
@@ -314,9 +316,7 @@ func main() {
 		fmt.Println(VERSION)
 		return
 	}
-	if *aFlag == "provision" {
-		provision()
-	} else if *aFlag == "create" {
+	if *aFlag == "create" {
 		create()
 	} else if *aFlag == "destroy" {
 		destroy()

@@ -6,7 +6,6 @@
 * automatically configure packet forwarding between host and containers (using iptables)
 * automatically configure bind mount of host file in containers
 * assign static ip to containers
-* easily provision a container with a local or remote script
 
 `thin-lxc` is not meant to replace LXC. It's an extension and is then used in parallel with LXC:
 
@@ -60,10 +59,6 @@ Options:
 
 This will basically just clean up the filesystem (`/containers/container_id`). It is user responsibility to stop the container before (`lxc-shutdown / lxc-stop`)
 
-### Provision a container
-
-Coming soon ...
-
 ### Limitations
 
 * host must be a ubuntu box and AuFS compatible
@@ -74,10 +69,9 @@ Coming soon ...
 
 ### TODO
 
-* finish test suite
+* complete test suite
 * implement provision
 * test behaviour after reboot
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
-* check system compatibility (AuFS, iptables ...)
 * test using a container created with `thin-lxc` as base container for another one
