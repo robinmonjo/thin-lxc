@@ -62,7 +62,7 @@ This will basically just clean up the filesystem (`/containers/container_id`). I
 ### Reload
 `thin-lxc -a reload`
 
-After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be deleted. Running `reload` will re-setup everything in place. A good idea is to create an upstart script to launch this command at boot time.
+After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be deleted. Running `reload` will re-setup everything in place. A good idea is to create an upstart script to launch this command at boot time. Note that this command only need to be run once.
 
 ### Limitations
 
@@ -75,6 +75,5 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 ### TODO
 
 * complete test suite
-* test behaviour after reboot
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
