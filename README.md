@@ -74,7 +74,6 @@ Coming soon ...
 
 ### TODO
 
-* random mac address generation
 * finish test suite
 * implement provision
 * test behaviour after reboot

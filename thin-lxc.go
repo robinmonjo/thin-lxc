@@ -24,7 +24,7 @@ Flag parsing
 
 var vFlag = flag.Bool("v", false, "print version and exit")
 
-var aFlag = flag.String("s", "", "action to perform")
+var aFlag = flag.String("a", "", "action to perform")
 var idFlag = flag.String("id", "", "id of the container")
 var ipFlag = flag.String("ip", "", "ip of the container")
 var nFlag = flag.String("name", "", "name (and hostname) of the container")
@@ -73,6 +73,12 @@ func (c Container) setupOnFS() {
 	}
 }
 
+func (c Container) cleanupFS() {
+	if err := exec.Command("rm", "-rf", c.Path).Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func (c Container) iptablesRuleDo(action string) error {
 	cmd := exec.Command("iptables", "-t", "nat", action,
 	 										"PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24",
@@ -81,23 +87,28 @@ func (c Container) iptablesRuleDo(action string) error {
 	return cmd.Run()
 }
 
+func (c Container) iptablesRuleExists() bool {
+	return c.iptablesRuleDo("-C") == nil
+}
+
 func (c Container) forwardPort() {
 	if c.Port == 0 && c.HostPort == 0 {
 		return
 	}
-	if err := c.iptablesRuleDo("-C"); err == nil {
+	if c.iptablesRuleExists() {
 		log.Fatal("Trying to add iptables rule that already exists")
 	}
 	c.iptablesRuleDo("-A")
 }
 
 func (c Container) unforwardPort() {
-	if err := c.iptablesRuleDo("-C"); err != nil { //rule doesn't exists
+	if c.iptablesRuleExists() == false { //rule doesn't exists
 		return
 	}
 	c.iptablesRuleDo("-D")
 }
 
+//TODO (in scenarios)
 func (c Container) executeTemplate(content string, path string) {
 	tmpl, err := template.New("thin-lxc").Parse(content)
 	if err != nil {
@@ -113,23 +124,13 @@ func (c Container) executeTemplate(content string, path string) {
 	}
 }
 
+//TODO (in scenarios)
 func (c Container) configureFiles() {
 	c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config")
 	c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces")
 	c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts")
 	c.executeTemplate(HOSTNAME_FILE, c.Rootfs + "/etc/hostname")
 	c.executeTemplate(SETUP_GATEWAY_FILE, c.Rootfs + "/etc/init/setup-gateway.conf")
-}
-
-func (c Container) destroy() {
-	if c.isRunning() {
-		log.Fatal("Container is running. Stop it before destroying it")
-	}
-	c.aufsUnmount()
-	if err := exec.Command("rm", "-rf", c.Path).Run(); err != nil {
-		log.Fatal(err)
-	}
-	c.unforwardPort()
 }
 
 func (c Container) aufsMount() {
@@ -139,9 +140,15 @@ func (c Container) aufsMount() {
 	}
 }
 
-func (c Container) aufsUnmount() {
+func (c Container) aufsUnmount(tryCount int) {
 	if err := exec.Command("umount", c.RoLayer).Run(); err != nil {
-		log.Fatal(err)
+		if tryCount >= 0 {
+			time.Sleep(1 * time.Second)
+			tryCount = tryCount - 1
+			c.aufsUnmount(tryCount)
+		} else {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -155,6 +162,7 @@ func (c Container) marshall() {
 	}
 }
 
+//TODO (in scenarios)
 func (c Container) isRunning() bool {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
@@ -162,6 +170,30 @@ func (c Container) isRunning() bool {
 	}
 	state := strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
 	return state != "STOPPED"
+}
+
+func (c Container) create() {
+	for hostMntPath, contMntPath := range c.BindMounts {
+		if fileExists(hostMntPath) == false {
+			log.Fatal(hostMntPath, " doesn't exists")
+		}
+		contMntPath = c.Rootfs + contMntPath
+		if fileExists(contMntPath) == false {
+				os.MkdirAll(contMntPath, 0700)
+		}
+	}
+
+	c.setupOnFS()
+	c.marshall()
+	c.aufsMount()
+	c.configureFiles()
+	c.forwardPort()
+}
+
+func (c Container) destroy() {
+	c.aufsUnmount(5)
+	c.cleanupFS()
+	c.unforwardPort()
 }
 
 /*
@@ -193,6 +225,38 @@ func randomHwaddr() string {
 	return strings.Join(arr, ":")
 }
 
+func parsePortsArg(ports string) (hostPort int, port int) {
+	hostPort = 0
+	port = 0
+	var err error
+	if len(ports) > 0 {
+		hostPort, err = strconv.Atoi(strings.Split(ports, ":")[0])
+		if err != nil {
+			hostPort = 0
+			return
+		}
+		port, err = strconv.Atoi(strings.Split(ports, ":")[1])
+		if err != nil {
+			port = 0;
+			return
+		}
+	}
+	return
+}
+
+func parseBindMountsArg(mounts string) (bindMounts map[string]string) {
+	bindMounts = make(map[string]string)
+	if len(mounts) > 0 {
+		arr := strings.Split(mounts, ",")
+		for i := range arr {
+			hostMountPath := strings.Split(arr[i], ":")[0]
+			contMountPath := strings.Split(arr[i], ":")[1]
+			bindMounts[hostMountPath] = contMountPath
+		}
+	}
+	return
+}
+
 /*
 Action methods
 */
@@ -203,12 +267,7 @@ func provision() {
 
 func create() {
 	path := CONTAINERS_ROOT_PATH + "/" + *idFlag
-	port := 0
-	hostPort := 0
-	if len(*pFlag) > 0 {
-		hostPort, _ = strconv.Atoi(strings.Split(*pFlag, ":")[0])
-		port, _ = strconv.Atoi(strings.Split(*pFlag, ":")[1])
-	}
+	hostPort, port := parsePortsArg(*pFlag)
 
 	c := Container{
 		*bFlag,                      //BaseContainerPath
@@ -225,35 +284,23 @@ func create() {
 		*nFlag,                      //Name
 		port,                        //Port
 		hostPort,                    //HostPort
-		make(map[string]string),     //BindMounts
+		parseBindMountsArg(*mFlag),  //BindMounts
 	}
 
 	if fileExists(c.Rootfs) {
 		log.Fatal("Container with such id already exists")
 	}
+	
+	c.create()
 
-	if len(*mFlag) > 0 {
-		arr := strings.Split(*mFlag, ",")
-		for i := range arr {
-			hostMountPath := strings.Split(arr[i], ":")[0]
-			contMountPath := c.Rootfs + strings.Split(arr[i], ":")[1]
-			if fileExists(contMountPath) == false {
-				os.MkdirAll(contMountPath, 0700)
-			}
-			c.BindMounts[hostMountPath] = contMountPath
-		}
-	}
-
-	c.setupOnFS()
-	c.marshall()
-	c.aufsMount()
-	c.configureFiles()
-	c.forwardPort()
 	fmt.Println("Container created start using: \"lxc-start -n", c.Name,"-f", c.ConfigPath, "-d\"")
 }
 
 func destroy() {
 	c := unmarshall(*idFlag)
+	if c.isRunning() {
+		log.Fatal("Container is running. Stop it before destroying it")
+	}
 	c.destroy()
 }
 
