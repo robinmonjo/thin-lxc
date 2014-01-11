@@ -85,6 +85,8 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 
 ### TODO
 
+* Use lxc.hook.network.up to setup route
+* modify VagrantFile so it uses 3.8 kernel (for lxc-attach support):  sudo apt-get install linux-image-generic-lts-raring
 * complete test suite
 * support multiple port forwarding
 * see if it's possible to redirect localhost:port to container:port in some way

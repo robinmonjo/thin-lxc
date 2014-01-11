@@ -6,6 +6,7 @@ import(
 	"os"
 	"os/exec"
 	"time"
+	"fmt"
 )
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
@@ -62,6 +63,10 @@ func Test_init(t *testing.T) {
 								}
 
 	containers = []Container{c1, c2, c3}
+
+	if fileExists(BASE_CONT_PATH) == false {
+		fmt.Println("Warning: a base container in /var/lib/lxc/baseCN should exists for tests to perform")
+	}
 }
 
 /*
@@ -69,24 +74,29 @@ Individual method test
 */
 
 func Test_parsePortsArg(t *testing.T) {
+	fmt.Print("Testing port option parsing ... ")
 	hostPort, port := parsePortsArg("1800:6777")
 	if hostPort != 1800 || port != 6777 {
-		t.Error("ports parsing failed")
+		t.Fatal("ports parsing failed")
 	}
 	hostPort, port = parsePortsArg("hello there")
 	if hostPort != 0 || port != 0 {
-		t.Error("ports parsing failed")
+		t.Fatal("ports parsing failed")
 	}
+	fmt.Println("OK")
 }
 
 func Test_parseBindMountsArg(t *testing.T) {
+	fmt.Print("Testing bind mounts option parsing ... ")
 	mounts := parseBindMountsArg("/tmp:/tmp/tmp")
 	if mounts["/tmp"] != "/tmp/tmp" {
-		t.Error("error parsing bind mounts")
+		t.Fatal("error parsing bind mounts")
 	}
+	fmt.Println("OK")
 }
 
 func Test_marshalling(t *testing.T) {
+	fmt.Print("Testing container metadata marshalling/unmarshalling ... ")
 	for i := range containers {
 		c := containers[i]
 		c.setupOnFS()
@@ -95,51 +105,58 @@ func Test_marshalling(t *testing.T) {
 		eq := reflect.DeepEqual(c, nc)
 		c1.cleanupFS()
 		if eq == false {
-			t.Error("marshalling/unmarshalling failed")
+			t.Fatal("marshalling/unmarshalling failed")
 		}
 	}
+	fmt.Println("OK")
 }
 
 func Test_aufsMount(t *testing.T) {
+	fmt.Print("Testing aufs mount/umount ... ")
 	for i := range containers {
 		c := containers[i]
 		c.setupOnFS()
 		if c.isMounted() {
-			t.Error("aufs mount already performed ?")
+			t.Fatal("aufs mount already performed ?")
 		}
 		c.aufsMount()
 		if c.isMounted() == false {
-			t.Error("aufs mount failed")
+			t.Fatal("aufs mount failed")
 		}
 		c.aufsUnmount(1)
 		if c.isMounted() {
-			t.Error("aufs unmount failed")
+			t.Fatal("aufs unmount failed")
 		}
 		c.cleanupFS()
 	}
+	fmt.Println("OK")
 }
 
 func Test_portForwarding(t *testing.T) {
+	fmt.Print("Testing iptables rules add/delete ... ")
 	for i := range containers {
 		c := containers[i]
 		if c.iptablesRuleExists() {
-			t.Error("iptables rule already exists")	
+			t.Fatal("iptables rule already exists")	
 		}
 		c.forwardPort()
 		if c.iptablesRuleExists() == false && (c.Port != 0 || c.HostPort != 0) {
-			t.Error("failed to add iptables rule")	
+			t.Fatal("failed to add iptables rule")	
 		}
 		c.unforwardPort()
 		if c.iptablesRuleExists() {
-			t.Error("failed to remove iptables rule")	
+			t.Fatal("failed to remove iptables rule")	
 		}
 	}
+	fmt.Println("OK")
 }
 
 /*
 Scenarios test
 */
 
+
+//TODO complete
 func Test_create(t *testing.T) {
 	os.Mkdir(HOST_MNT_FOLDER, 0700)
 	os.Create(HOST_MNT_FILE)
