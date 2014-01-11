@@ -11,9 +11,9 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID = "thin_lxc_test_id3"
-const IP = "10.0.3.147"
-const NAME = "thin_lxc_test_name3"
+const ID = "thin_lxc_test_id12"
+const IP = "10.0.3.155"
+const NAME = "thin_lxc_test_name12"
 
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
 const HOST_MNT_FILE = "/tmp/thin-lxc-test.conf"
@@ -155,26 +155,34 @@ func Test_portForwarding(t *testing.T) {
 Scenarios test
 */
 
-
 //TODO complete
 func Test_create(t *testing.T) {
+	fmt.Print("Tesing full creation + sanity check ... ")
 	os.Mkdir(HOST_MNT_FOLDER, 0700)
 	os.Create(HOST_MNT_FILE)
-
 	for i := range containers {
 		c := containers[i]
 		c.create()
 		if err := exec.Command("lxc-start", "-n", c.Name, "-f", c.ConfigPath, "-d").Run(); err != nil {
-			t.Error("Unable to start container", err)
+			t.Fatal("Unable to start container", err)
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(5 * time.Second) //wait till all is up inside the container
+
+		//test network
+		if err := exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "2", "www.google.fr").Run(); err != nil {
+			t.Fatal("Unable to ping google)", err)
+		}
+
 		if err := exec.Command("lxc-stop", "-n", c.Name).Run(); err != nil {
-			t.Error("Unable to stop container", err)
+			t.Fatal("Unable to stop container", err)
 		}
 		c.destroy()
+		if fileExists(c.Path) {
+			t.Fatal("Container not properly cleaned-up")
+		}
 	}
-
 	os.Remove(HOST_MNT_FOLDER)
 	os.Remove(HOST_MNT_FILE)
+	fmt.Println("OK")
 }
 
