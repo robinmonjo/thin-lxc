@@ -13,6 +13,7 @@ import(
 	"text/template"
 	"math/rand"
 	"time"
+	"path"
 )
 
 const VERSION = "0.2"
@@ -141,8 +142,7 @@ func (c Container) aufsUnmount(tryCount int) {
 	if err := exec.Command("umount", c.RoLayer).Run(); err != nil {
 		if tryCount >= 0 {
 			time.Sleep(1 * time.Second)
-			tryCount = tryCount - 1
-			c.aufsUnmount(tryCount)
+			c.aufsUnmount(tryCount - 1)
 		} else {
 			log.Fatal(err)
 		}
@@ -151,6 +151,29 @@ func (c Container) aufsUnmount(tryCount int) {
 
 func (c Container) isMounted() bool {
 	return fileExists(c.Rootfs)
+}
+
+func (c Container) prepareBindMounts() {
+	for hostMntPath, contMntPath := range c.BindMounts {
+		if fileExists(hostMntPath) == false {
+			c.destroy() //clean up
+			log.Fatal(hostMntPath, " doesn't exists")
+		}
+		c.BindMounts[hostMntPath] = c.Rootfs + contMntPath
+		if fileExists(c.BindMounts[hostMntPath]) == false {
+			ext := path.Ext(c.BindMounts[hostMntPath])
+			if ext == "" {
+				os.MkdirAll(c.BindMounts[hostMntPath], 0700)	
+			} else {
+				os.MkdirAll(path.Dir(c.BindMounts[hostMntPath]), 0700)
+				file, err := os.Create(c.BindMounts[hostMntPath])
+				defer file.Close()
+				if err != nil {
+					log.Fatal("Unable to create the bm file", err)
+				}
+			}
+		}
+	}
 }
 
 func (c Container) marshall() {
@@ -163,7 +186,6 @@ func (c Container) marshall() {
 	}
 }
 
-//TODO (in scenarios)
 func (c Container) isRunning() bool {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
@@ -174,19 +196,10 @@ func (c Container) isRunning() bool {
 }
 
 func (c Container) create() {
-	for hostMntPath, contMntPath := range c.BindMounts {
-		if fileExists(hostMntPath) == false {
-			log.Fatal(hostMntPath, " doesn't exists")
-		}
-		contMntPath = c.Rootfs + contMntPath
-		if fileExists(contMntPath) == false {
-				os.MkdirAll(contMntPath, 0700)
-		}
-	}
-
 	c.setupOnFS()
 	c.marshall()
 	c.aufsMount()
+	c.prepareBindMounts()
 	c.configureFiles()
 	c.forwardPort()
 }

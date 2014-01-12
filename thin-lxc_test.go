@@ -11,12 +11,15 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID = "thin_lxc_test_id12"
-const IP = "10.0.3.155"
-const NAME = "thin_lxc_test_name12"
+const ID = "thin-lxc-test-id11"
+const IP = "10.0.3.218"
+const NAME = "thin-lxc-test-name11"
 
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
 const HOST_MNT_FILE = "/tmp/thin-lxc-test.conf"
+
+const CONT_MNT_FOLDER = "/tmp/test"
+const CONT_MNT_FILE = "/tmp/test.conf"
 
 /*
 Test bench
@@ -58,8 +61,8 @@ func Test_init(t *testing.T) {
 
 	c3 = c2
 	c3.BindMounts = map[string]string {
-									HOST_MNT_FOLDER:"/tmp/test",
-									HOST_MNT_FILE:"/tmp/test.conf",
+									HOST_MNT_FOLDER: CONT_MNT_FOLDER,
+									HOST_MNT_FILE: CONT_MNT_FILE,
 								}
 
 	containers = []Container{c1, c2, c3}
@@ -162,17 +165,34 @@ func Test_create(t *testing.T) {
 	os.Create(HOST_MNT_FILE)
 	for i := range containers {
 		c := containers[i]
+
+		//Creating
 		c.create()
 		if err := exec.Command("lxc-start", "-n", c.Name, "-f", c.ConfigPath, "-d").Run(); err != nil {
 			t.Fatal("Unable to start container", err)
 		}
 		time.Sleep(5 * time.Second) //wait till all is up inside the container
 
-		//test network
-		if err := exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "2", "www.google.fr").Run(); err != nil {
-			t.Fatal("Unable to ping google)", err)
+		if c.isRunning() == false {
+			t.Fatal("Unable to start container")
 		}
 
+		//test network
+		if err := exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "2", "www.google.fr").Run(); err != nil {
+			t.Fatal("Unable to ping google", err)
+		}
+
+		//test bind mounts
+		if i == 2 { //c3, the container with bind mounts
+			if err := exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-d", CONT_MNT_FOLDER).Run(); err != nil {
+				t.Fatal("Bind mount folder failed", err)
+			}
+			if err := exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-f", CONT_MNT_FILE).Run(); err != nil {
+				t.Fatal("Bind mount file failed", err)
+			}
+		}
+
+		//Cleaning up
 		if err := exec.Command("lxc-stop", "-n", c.Name).Run(); err != nil {
 			t.Fatal("Unable to stop container", err)
 		}
