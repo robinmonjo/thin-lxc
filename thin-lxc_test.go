@@ -12,13 +12,13 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID_1 = "thin-lxc-test-c20"
+const ID_1 = "thin-lxc-test-c11"
 const NAME_1 = "thin-lxc-test-name-c1"
 
-const ID_2 = "thin-lxc-test-c21"
+const ID_2 = "thin-lxc-test-c2"
 const NAME_2 = "thin-lxc-test-name-c2"
 
-const ID_3 = "thin-lxc-test-c22"
+const ID_3 = "thin-lxc-test-c3"
 const NAME_3 = "thin-lxc-test-name-c3"
 
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
@@ -139,10 +139,6 @@ func Test_parseBindMountsArg(t *testing.T) {
 	fmt.Println("OK")
 }
 
-func Test_prepareBindMounts(t *testing.T) {
-	fmt.Println("Testing prepare bind mounts")
-}
-
 func Test_marshalling(t *testing.T) {
 	fmt.Print("Testing container metadata marshalling/unmarshalling ... ")
 	for i := range containers {
@@ -229,23 +225,29 @@ func Test_create(t *testing.T) {
 	fmt.Println("OK")
 }
 
-/*func Test_reload(t *testing.T) {
+func Test_reload(t *testing.T) {
 	fmt.Print("Testing reload ... ")
 	for i := range containers {
 		c := containers[i]
 		c.create()
 		if err := c.start(); err != nil {
-			t.Fatal("Failed to start container", err)
+			failTest(t, "Failed to start container", err)
 		}
+		time.Sleep(5 * time.Second)
 	}
 
-	time.Sleep(4 * time.Second)
+	fmt.Println("Will check internal after first start")
+	for i := range containers {
+		c := containers[i]
+		c.checkInternal(i == 2, t)
+	}
+	fmt.Println("First start internal check ok")
 
 	//simulate shutdown
 	for i := range containers {
 		c := containers[i]
 		if err := c.stop(); err != nil {
-			t.Fatal("Failed to stop container")
+			failTest(t, "Failed to stop container", err)
 		}
 		c.aufsUnmount(5)
 		c.unforwardPort()
@@ -257,24 +259,24 @@ func Test_create(t *testing.T) {
 	for i := range containers {
 		c := containers[i]
 		if err := c.start(); err != nil {
-			t.Fatal("Failed to restart container after reload")
+			failTest(t, "Failed to restart container after reload", err)
 		}
 		time.Sleep(4 * time.Second)
 
 		c.checkInternal(i == 2, t)
 
 		if c.iptablesRuleExists() == false && (c.Port != 0 || c.HostPort != 0) {
-			t.Fatal("Failed to setup iptables rules after reload")	
+			failTest(t, "Failed to setup iptables rules after reload")	
 		}
 
 		if err := c.stop(); err != nil {
-			t.Fatal("Failed to stop container")
+			failTest(t, "Failed to stop container", err)
 		}
 		c.destroy()
 	}
 
 	fmt.Println("OK")
-}*/
+}
 
 /*
 	Helper
@@ -292,17 +294,18 @@ func (c *Container) checkInternal(testBindMount bool, t *testing.T) {
 		failTest(t, "Unable to start container")
 	}
 	//test network
-	if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "2", "www.google.fr")); err != nil {
+	if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "3", "www.google.com")); err != nil {
 		failTest(t, "Unable to ping google", err)
 	}
 	//test bind mounts
-	if testBindMount {
-		if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-d", CONT_MNT_FOLDER)); err != nil {
-			failTest(t, "Bind mount folder failed", err)
-		}
-		if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-f", CONT_MNT_FILE)); err != nil {
-			failTest(t, "Bind mount file failed", err)
-		}
+	if testBindMount == false {
+		return
+	}
+	if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-d", CONT_MNT_FOLDER)); err != nil {
+		failTest(t, "Bind mount folder failed", err)
+	}
+	if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/usr/bin/test", "-f", CONT_MNT_FILE)); err != nil {
+		failTest(t, "Bind mount file failed", err)
 	}
 }
 

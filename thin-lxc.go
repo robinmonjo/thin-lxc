@@ -158,6 +158,10 @@ func (c *Container) isMounted() bool {
 
 func (c *Container) prepareBindMounts() error {
 	for hostMntPath, contMntPath := range c.BindMounts {
+		if strings.HasPrefix(c.BindMounts[hostMntPath], c.Rootfs) {
+			continue //containers bind mount point already in rootfs
+		}
+
 		if fileExists(hostMntPath) == false {
 			return errors.New(hostMntPath + " doesn't exists")
 		}
