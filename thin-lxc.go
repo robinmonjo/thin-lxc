@@ -14,6 +14,7 @@ import(
 	"math/rand"
 	"time"
 	"path"
+	"errors"
 )
 
 const VERSION = "0.2"
@@ -38,17 +39,17 @@ Container type + methods
 */
 
 type Container struct {
-	BaseContainerPath string 
-	Path string
+	BaseContainerPath string     
+	Path string                  
 
-	RoLayer string 
-	WrLayer string
+	RoLayer string
+	WrLayer string               
 	Rootfs string
 	ConfigPath string
 
 	Id string
 	Ip string
-	Hwaddr string 
+	Hwaddr string
 	Name string
 
 	Port int
@@ -57,179 +58,202 @@ type Container struct {
 	BindMounts map[string]string
 }
 
-func (c Container) FstabConfig() string {
+func (c *Container) FstabConfig() string {
 	return c.RoLayer + "/" + "fstab"
 }
 
-func (c Container) IpConfig() string {
+func (c *Container) IpConfig() string {
 	return c.Ip + "/24"
 }
 
-func (c Container) setupOnFS() {
+func (c *Container) setupOnFS() error {
 	if err := os.MkdirAll(c.RoLayer, 0700); err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if err := os.MkdirAll(c.WrLayer, 0700); err != nil {
-		log.Fatal(err)
-	}
+	return os.MkdirAll(c.WrLayer, 0700)
 }
 
-func (c Container) cleanupFS() {
-	if err := exec.Command("rm", "-rf", c.Path).Run(); err != nil {
-		log.Fatal(err)
-	}
+func (c *Container) cleanupFS() error {
+	return os.RemoveAll(c.Path)
 }
 
-func (c Container) iptablesRuleDo(action string) error {
+func (c *Container) iptablesRuleDo(action string) error {
 	cmd := exec.Command("iptables", "-t", "nat", action, "PREROUTING", "-p", "tcp", "!", "-s", "10.0.3.0/24", "--dport", strconv.Itoa(c.HostPort), "-j", "DNAT", "--to-destination", c.Ip + ":" + strconv.Itoa(c.Port))
-	return cmd.Run()
+	return runCmdWithDetailedError(cmd)
 }
 
-func (c Container) iptablesRuleExists() bool {
+func (c *Container) iptablesRuleExists() bool {
 	return c.iptablesRuleDo("-C") == nil
 }
 
-func (c Container) forwardPort() {
+func (c *Container) forwardPort() error {
 	if c.Port == 0 && c.HostPort == 0 {
-		return
+		return nil
 	}
 	if c.iptablesRuleExists() {
-		log.Fatal("Trying to add iptables rule that already exists")
+		return errors.New("Trying to add iptables rule that already exists")
 	}
-	c.iptablesRuleDo("-A")
+	return c.iptablesRuleDo("-A")
 }
 
-func (c Container) unforwardPort() {
+func (c *Container) unforwardPort() error {
 	if c.iptablesRuleExists() == false { //rule doesn't exists
-		return
+		return nil
 	}
-	c.iptablesRuleDo("-D")
+	return c.iptablesRuleDo("-D")
 }
 
-//TODO (in scenarios)
-func (c Container) executeTemplate(content string, path string) {
+func (c *Container) executeTemplate(content string, path string) error {
 	tmpl, err := template.New("thin-lxc").Parse(content)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	file, err := os.Create(path)
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer file.Close()
-	if err := tmpl.Execute(file, c); err != nil {
-		log.Fatal(err)
+	if err != nil {
+		return err
 	}
+	return tmpl.Execute(file, c)
 }
 
-//TODO (in scenarios)
-func (c Container) configureFiles() {
-	c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config")
-	c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces")
-	c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts")
-	c.executeTemplate(HOSTNAME_FILE, c.Rootfs + "/etc/hostname")
-	c.executeTemplate(SETUP_GATEWAY_FILE, c.Rootfs + "/etc/init/setup-gateway.conf")
+func (c *Container) configureFiles() error {
+	if err := c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config"); err != nil {
+		return err
+	}
+	if err := c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces"); err != nil {
+		return err
+	}
+	if err := c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts"); err != nil {
+		return err
+	}
+	if err := c.executeTemplate(HOSTNAME_FILE, c.Rootfs + "/etc/hostname"); err != nil {
+		return err
+	}
+	if err := c.executeTemplate(SETUP_GATEWAY_FILE, c.Rootfs + "/etc/init/setup-gateway.conf"); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (c Container) aufsMount() {
+func (c *Container) aufsMount() error {
 	mnt := "br=" + c.WrLayer + "=rw:" + c.BaseContainerPath + "=ro"
-	if err := exec.Command("mount", "-t", "aufs", "-o", mnt, "none", c.RoLayer).Run(); err != nil {
-		log.Fatal(err)
-	}
+	return runCmdWithDetailedError(exec.Command("mount", "-t", "aufs", "-o", mnt, "none", c.RoLayer))
 }
 
-func (c Container) aufsUnmount(tryCount int) {
-	if err := exec.Command("umount", c.RoLayer).Run(); err != nil {
+func (c *Container) aufsUnmount(tryCount int) error {
+	if err := runCmdWithDetailedError(exec.Command("umount", c.RoLayer)); err != nil {
 		if tryCount >= 0 {
 			time.Sleep(1 * time.Second)
 			c.aufsUnmount(tryCount - 1)
 		} else {
-			log.Fatal(err)
+			return err
 		}
 	}
+	return nil
 }
 
-func (c Container) isMounted() bool {
+func (c *Container) isMounted() bool {
 	return fileExists(c.Rootfs)
 }
 
-func (c Container) prepareBindMounts() {
+func (c *Container) prepareBindMounts() error {
 	for hostMntPath, contMntPath := range c.BindMounts {
 		if fileExists(hostMntPath) == false {
-			c.destroy() //clean up
-			log.Fatal(hostMntPath, " doesn't exists")
+			return errors.New(hostMntPath + " doesn't exists")
 		}
 		c.BindMounts[hostMntPath] = c.Rootfs + contMntPath
-		if fileExists(c.BindMounts[hostMntPath]) == false {
-			ext := path.Ext(c.BindMounts[hostMntPath])
-			if ext == "" {
-				os.MkdirAll(c.BindMounts[hostMntPath], 0700)	
-			} else {
-				os.MkdirAll(path.Dir(c.BindMounts[hostMntPath]), 0700)
-				file, err := os.Create(c.BindMounts[hostMntPath])
-				defer file.Close()
-				if err != nil {
-					log.Fatal("Unable to create the bm file", err)
-				}
-			}
+		if fileExists(c.BindMounts[hostMntPath]) {
+			continue
+		}
+
+		var err error
+		if path.Ext(c.BindMounts[hostMntPath]) == "" {
+			err = os.MkdirAll(c.BindMounts[hostMntPath], 0700)	
+		} else {
+			err = os.MkdirAll(path.Dir(c.BindMounts[hostMntPath]), 0700)
+			var file *os.File
+			file, err = os.Create(c.BindMounts[hostMntPath])
+			defer file.Close()
+		}
+		if err != nil {
+			return err
 		}
 	}
+	return nil
 }
 
-func (c Container) marshall() {
+func (c *Container) marshall() error {
 	b, err := json.Marshal(c)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if err := ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644); err != nil {
-		log.Fatal(err)
-	}
+	return ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644)
 }
 
-func (c Container) isRunning() bool {
+func (c *Container) isRunning() bool {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
-		log.Fatal(err)
+		log.Println("lxc-info failed", err)
+		return false
 	}
 	state := strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
 	return state != "STOPPED"
 }
 
-func (c Container) create() {
-	c.setupOnFS()
-	c.marshall()
-	c.aufsMount()
-	c.prepareBindMounts()
-	c.configureFiles()
-	c.forwardPort()
-}
-
-func (c Container) destroy() {
-	c.aufsUnmount(5)
-	c.cleanupFS()
-	c.unforwardPort()
-}
-
-func (c Container) reload() {
-	if c.isMounted() == false {
-		c.aufsMount()
+func (c *Container) create() error {
+	if err := c.setupOnFS(); err != nil {
+		return err
 	}
-	c.forwardPort()
+	if err := c.marshall(); err != nil {
+		return err
+	}
+	if err := c.aufsMount(); err != nil {
+		return err
+	}
+	if err := c.prepareBindMounts(); err != nil {
+		return err
+	}
+	if err := c.configureFiles(); err != nil {
+		return err
+	}
+	if err := c.forwardPort(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Container) destroy() error {
+	if err := c.unforwardPort(); err != nil {
+		return err
+	}
+	if err := c.aufsUnmount(5); err != nil {
+		return err
+	}
+	return c.cleanupFS()
+}
+
+func (c *Container) reload() error {
+	if c.isMounted() == false {
+		if err := c.aufsMount(); err != nil {
+			return err
+		}
+	}
+	return c.forwardPort()
 }
 
 /*
 Helper methods
 */
-func unmarshall(id string) Container {
+func unmarshall(id string) (*Container, error) {
 	b, err := ioutil.ReadFile(CONTAINERS_ROOT_PATH + "/" + id + "/.metadata.json")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	var c Container
 	if err = json.Unmarshal(b, &c); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return c
+	return &c, nil
 }
 
 func fileExists(path string) bool {
@@ -238,7 +262,6 @@ func fileExists(path string) bool {
 }
 
 func randomHwaddr() string {
-	rand.Seed(time.Now().Unix())
 	arr := []string{"00:16:3e"}
 	for i := 0; i < 3; i++ {
 		arr = append(arr, fmt.Sprintf("%0.2x", rand.Intn(256)))
@@ -250,32 +273,42 @@ func parsePortsArg(ports string) (hostPort int, port int) {
 	hostPort = 0
 	port = 0
 	var err error
-	if len(ports) > 0 {
-		hostPort, err = strconv.Atoi(strings.Split(ports, ":")[0])
-		if err != nil {
-			hostPort = 0
-			return
-		}
-		port, err = strconv.Atoi(strings.Split(ports, ":")[1])
-		if err != nil {
-			port = 0;
-			return
-		}
+	if len(ports) == 0 {
+		return
+	}
+	hostPort, err = strconv.Atoi(strings.Split(ports, ":")[0])
+	if err != nil {
+		hostPort = 0
+		return
+	}
+	port, err = strconv.Atoi(strings.Split(ports, ":")[1])
+	if err != nil {
+		port = 0;
+		return
 	}
 	return
 }
 
 func parseBindMountsArg(mounts string) (bindMounts map[string]string) {
 	bindMounts = make(map[string]string)
-	if len(mounts) > 0 {
-		arr := strings.Split(mounts, ",")
-		for i := range arr {
-			hostMountPath := strings.Split(arr[i], ":")[0]
-			contMountPath := strings.Split(arr[i], ":")[1]
-			bindMounts[hostMountPath] = contMountPath
-		}
+	if len(mounts) == 0 {
+		return
+	}
+	arr := strings.Split(mounts, ",")
+	for i := range arr {
+		hostMountPath := strings.Split(arr[i], ":")[0]
+		contMountPath := strings.Split(arr[i], ":")[1]
+		bindMounts[hostMountPath] = contMountPath
 	}
 	return
+}
+
+func runCmdWithDetailedError(cmd *exec.Cmd) error {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(string(out), err)
+	}
+	return nil
 }
 
 /*
@@ -286,7 +319,7 @@ func create() {
 	path := CONTAINERS_ROOT_PATH + "/" + *idFlag
 	hostPort, port := parsePortsArg(*pFlag)
 
-	c := Container{
+	c := &Container{
 		*bFlag,                               //BaseContainerPath
 		path,                                 //Path
     
@@ -308,17 +341,24 @@ func create() {
 		log.Fatal("Container with such id already exists")
 	}
 	
-	c.create()
+	if err := c.create(); err != nil {
+		log.Fatal("Unable to create container", err)
+	}
 
 	fmt.Println("Container created start using: \"lxc-start -n", c.Name,"-f", c.ConfigPath, "-d\"")
 }
 
 func destroy() {
-	c := unmarshall(*idFlag)
+	c, err := unmarshall(*idFlag)
+	if err != nil {
+		log.Fatal("Unable to unmarchall container metadata", err)
+	}
 	if c.isRunning() {
 		log.Fatal("Container is running. Stop it before destroying it")
 	}
-	c.destroy()
+	if err := c.destroy(); err != nil {
+		log.Fatal("Unable to destroy container", err)
+	}
 }
 
 func reload() {
@@ -329,9 +369,15 @@ func reload() {
 	}
 	for i := range dirs {
 		dir := dirs[i]
-		if fileExists(CONTAINERS_ROOT_PATH + "/" + dir.Name() + "/.metadata.json") {
-			c := unmarshall(dir.Name())
-			c.reload()
+		if fileExists(CONTAINERS_ROOT_PATH + "/" + dir.Name() + "/.metadata.json") == false {
+			continue
+		}
+		c, err := unmarshall(dir.Name())
+		if err != nil {
+			log.Fatal("Unable to unmarshall", c.Name)
+		}
+		if err := c.reload(); err != nil {
+			log.Fatal("Unable to reload", c.Name)
 		}
 	}
 }
@@ -347,6 +393,7 @@ func main() {
 		return
 	}
 	if *aFlag == "create" {
+		rand.Seed(time.Now().Unix())
 		create()
 	} else if *aFlag == "destroy" {
 		destroy()
