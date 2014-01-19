@@ -319,7 +319,7 @@ func cleanup() {
 	for i := range containers {
 		c := containers[i]
 		c.stop();
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 		c.destroy() //destroy ignoring errors
 	}
 	fmt.Println("OK")

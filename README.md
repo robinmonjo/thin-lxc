@@ -84,9 +84,8 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 * containers will be created in `/containers`
 
 ### TODO
-* fix test not passing
-* try to remove fstab
-* refactor (container in a separate package and testbench to)
+
+* refactor (container in a separate package and testbench too)
 * Use lxc.hook.network.up to setup route
 * complete test suite
 * support multiple port forwarding

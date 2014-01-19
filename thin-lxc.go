@@ -60,10 +60,6 @@ type Container struct {
 	BindMounts map[string]string
 }
 
-func (c *Container) FstabConfig() string {
-	return c.RoLayer + "/" + "fstab"
-}
-
 func (c *Container) IpConfig() string {
 	return c.Ip + "/24"
 }
@@ -429,7 +425,6 @@ lxc.devttydir = lxc
 lxc.tty = 4
 lxc.pts = 1024
 lxc.rootfs = {{.Rootfs}}
-lxc.mount  = {{.FstabConfig}}
 lxc.arch = amd64
 lxc.cap.drop = sys_module mac_admin
 lxc.pivotdir = lxc_putold
