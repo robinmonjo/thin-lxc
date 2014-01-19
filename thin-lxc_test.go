@@ -12,13 +12,13 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID_1 = "thin-lxc-test-c11"
+const ID_1 = "thin-lxc-test-c0"
 const NAME_1 = "thin-lxc-test-name-c1"
 
-const ID_2 = "thin-lxc-test-c2"
+const ID_2 = "thin-lxc-test-c1"
 const NAME_2 = "thin-lxc-test-name-c2"
 
-const ID_3 = "thin-lxc-test-c3"
+const ID_3 = "thin-lxc-test-c2"
 const NAME_3 = "thin-lxc-test-name-c3"
 
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
@@ -236,12 +236,10 @@ func Test_reload(t *testing.T) {
 		time.Sleep(5 * time.Second)
 	}
 
-	fmt.Println("Will check internal after first start")
 	for i := range containers {
 		c := containers[i]
 		c.checkInternal(i == 2, t)
 	}
-	fmt.Println("First start internal check ok")
 
 	//simulate shutdown
 	for i := range containers {
@@ -261,7 +259,7 @@ func Test_reload(t *testing.T) {
 		if err := c.start(); err != nil {
 			failTest(t, "Failed to restart container after reload", err)
 		}
-		time.Sleep(4 * time.Second)
+		time.Sleep(3 * time.Second)
 
 		c.checkInternal(i == 2, t)
 
@@ -274,7 +272,6 @@ func Test_reload(t *testing.T) {
 		}
 		c.destroy()
 	}
-
 	fmt.Println("OK")
 }
 
@@ -291,7 +288,7 @@ func (c *Container) stop() error {
 
 func (c *Container) checkInternal(testBindMount bool, t *testing.T) {
 	if c.isRunning() == false {
-		failTest(t, "Unable to start container")
+		failTest(t, c.Name, "Apperas not to be running")
 	}
 	//test network
 	if err := runCmdWithDetailedError(exec.Command("lxc-attach", "-n", c.Name, "--", "/bin/ping", "-c", "3", "www.google.com")); err != nil {

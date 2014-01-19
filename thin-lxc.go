@@ -15,6 +15,8 @@ import(
 	"time"
 	"path"
 	"errors"
+	//"bufio"
+	//"io"
 )
 
 const VERSION = "0.2"
@@ -158,14 +160,13 @@ func (c *Container) isMounted() bool {
 
 func (c *Container) prepareBindMounts() error {
 	for hostMntPath, contMntPath := range c.BindMounts {
-		if strings.HasPrefix(c.BindMounts[hostMntPath], c.Rootfs) {
-			continue //containers bind mount point already in rootfs
-		}
-
 		if fileExists(hostMntPath) == false {
 			return errors.New(hostMntPath + " doesn't exists")
 		}
-		c.BindMounts[hostMntPath] = c.Rootfs + contMntPath
+		if strings.HasPrefix(c.BindMounts[hostMntPath], c.Rootfs) == false {
+			c.BindMounts[hostMntPath] = c.Rootfs + contMntPath
+		}
+
 		if fileExists(c.BindMounts[hostMntPath]) {
 			continue
 		}
@@ -406,6 +407,9 @@ func main() {
 	} else {
 		log.Fatal("Unknown action ", *aFlag)
 	}
+
+
+
 }
 
 /*
