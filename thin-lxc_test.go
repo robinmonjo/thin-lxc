@@ -12,13 +12,13 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID_1 = "thin-lxc-test-c0"
+const ID_1 = "thin-lxc-test-c1"
 const NAME_1 = "thin-lxc-test-name-c1"
 
-const ID_2 = "thin-lxc-test-c1"
+const ID_2 = "thin-lxc-test-c2"
 const NAME_2 = "thin-lxc-test-name-c2"
 
-const ID_3 = "thin-lxc-test-c2"
+const ID_3 = "thin-lxc-test-c3"
 const NAME_3 = "thin-lxc-test-name-c3"
 
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
@@ -195,6 +195,43 @@ func Test_portForwarding(t *testing.T) {
 	fmt.Println("OK")
 }
 
+func Test_containerStateMonitoring(t *testing.T) {
+	fmt.Print("Testing state change monitoring ... ")
+	c := containers[0]
+	if err := c.create(); err != nil {
+		failTest(t, "Failed to create container", err)
+	}
+	
+	cs := make(chan string)
+	go monitorContainerForState(&c, C_STOPPED, cs)
+	state := <-cs
+	if state != C_STOPPED {
+		failTest(t, "Expected", C_STOPPED, "got", state)
+	}
+
+	cs = make(chan string)
+	go monitorContainerForState(&c, C_RUNNING, cs)
+	if err := c.start(); err != nil {
+		failTest(t, "Failed to start container", err)
+	}
+	state = <-cs
+	if state != C_RUNNING {
+		failTest(t, "Excepted", C_RUNNING, "got", state)
+	}
+
+	cs = make(chan string)
+	go monitorContainerForState(&c, C_STOPPED, cs)
+	if err := c.stop(); err != nil {
+		failTest(t, "Failed to stop container", err)
+	}
+	c.destroy()
+	state = <-cs
+	if state != C_STOPPED {
+		failTest(t, "Excepted", C_STOPPED, "got", state)
+	}
+	fmt.Println("OK")
+}
+
 /*
 Scenarios test
 */
@@ -209,7 +246,9 @@ func Test_create(t *testing.T) {
 		if err := c.start(); err != nil {
 			failTest(t, "Unable to start container", err)
 		}
-		time.Sleep(5 * time.Second) //wait till all is up inside the container
+		cs := make(chan string)
+		go monitorContainerForState(&c, C_RUNNING, cs)
+		<-cs
 
 		c.checkInternal(i == 2, t)
 		
@@ -229,11 +268,15 @@ func Test_reload(t *testing.T) {
 	fmt.Print("Testing reload ... ")
 	for i := range containers {
 		c := containers[i]
-		c.create()
+		if err := c.create(); err != nil {
+			failTest(t, "Failed to create container", err)
+		}
 		if err := c.start(); err != nil {
 			failTest(t, "Failed to start container", err)
 		}
-		time.Sleep(5 * time.Second)
+		cs := make(chan string)
+		go monitorContainerForState(&c, C_RUNNING, cs)
+		<-cs
 	}
 
 	for i := range containers {
@@ -259,7 +302,9 @@ func Test_reload(t *testing.T) {
 		if err := c.start(); err != nil {
 			failTest(t, "Failed to restart container after reload", err)
 		}
-		time.Sleep(3 * time.Second)
+		cs := make(chan string)
+		go monitorContainerForState(&c, C_RUNNING, cs)
+		<-cs
 
 		c.checkInternal(i == 2, t)
 
@@ -319,7 +364,9 @@ func cleanup() {
 	for i := range containers {
 		c := containers[i]
 		c.stop();
-		time.Sleep(3 * time.Second)
+		cs := make(chan string)
+		go monitorContainerForState(&c, C_STOPPED, cs)
+		<-cs
 		c.destroy() //destroy ignoring errors
 	}
 	fmt.Println("OK")

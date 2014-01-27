@@ -23,6 +23,17 @@ const VERSION = "0.2"
 const CONTAINERS_ROOT_PATH = "/containers"
 
 /*
+LXC container state as returned by the lxc-info command
+*/
+const (
+	C_STARTING = "STARTING"
+	C_RUNNING = "RUNNING"
+	C_STOPPING = "STOPPING"
+	C_STOPPED = "STOPPED"
+	C_UNLNOWN = "UNKNOWN"
+)
+
+/*
 Flag parsing
 */
 
@@ -191,14 +202,17 @@ func (c *Container) marshall() error {
 	return ioutil.WriteFile(c.Path + "/.metadata.json", b, 0644)
 }
 
-func (c *Container) isRunning() bool {
+func (c *Container) state() string {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
 		log.Println("lxc-info failed", err)
-		return false
+		return C_UNLNOWN
 	}
-	state := strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
-	return state != "STOPPED"
+	return strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
+}
+
+func (c *Container) isRunning() bool {
+	return c.state() == C_RUNNING
 }
 
 func (c *Container) create() error {
@@ -310,6 +324,26 @@ func runCmdWithDetailedError(cmd *exec.Cmd) error {
 		return fmt.Errorf(string(out), err)
 	}
 	return nil
+}
+
+/*
+Usage:
+cs := make(chan string)
+go monitorContainerForState(c, C_RUNNING, cs)
+state := <-cs
+*/
+func monitorContainerForState(c *Container, state string, cs chan string) {
+	curState := c.state()
+	if curState == state {
+		if state == C_RUNNING {
+			time.Sleep(2 * time.Second) //wait extra time to make sure network is up
+		}
+		cs <- curState
+		close(cs)
+		return
+	}
+	time.Sleep(500 * time.Millisecond)
+	monitorContainerForState(c, state, cs)
 }
 
 /*

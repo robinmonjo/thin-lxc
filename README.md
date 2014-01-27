@@ -85,9 +85,15 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 
 ### TODO
 
+* use lxc-info to monitor change state (go routine) + remove time.Sleep in tests
+* add test for state monitoring function
+* bump version + clean way to build (release flags ect)
+* check system comptability (run test on target system and if it fails, announe not full comptability)
 * refactor (container in a separate package and testbench too)
-* Use lxc.hook.network.up to setup route
-* complete test suite
+* dynamic dhcp + dynamic name / id or name + id (in a file of preconfigured name)
+* full network (host --> container hostname | container --> host hostname)
+* memory and cpu share limitation + test
+* disk limitation + test
 * support multiple port forwarding
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
