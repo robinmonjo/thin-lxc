@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 VERSION=0.3
 
 echo "Downloading sources"

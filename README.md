@@ -29,7 +29,7 @@ thin-lxc -a destroy -id CONTAINER_ID
 ### Install
 
 ````bash
- curl -sL https://github.com/robinmonjo/thin-lxc/archive/v0.2.tar.gz | tar -C /tmp -zxf - && go build /tmp/thin-lxc-0.2/thin-lxc.go && sudo mv thin-lxc /usr/local/bin && rm -rf /tmp/thin-lxc*
+ curl -sL https://raw.github.com/robinmonjo/thin-lxc/master/install.sh | bash
 ````
 
 ### Create a container
