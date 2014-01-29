@@ -124,20 +124,17 @@ func (c *Container) executeTemplate(content string, path string) error {
 }
 
 func (c *Container) configureFiles() error {
-	if err := c.executeTemplate(CONFIG_FILE, c.RoLayer + "/config"); err != nil {
-		return err
+	configs := map[string]string{
+		CONFIG_FILE: c.RoLayer + "/config",
+		INTERFACES_FILE: c.Rootfs + "/etc/network/interfaces",
+		HOSTS_FILE: c.Rootfs + "/etc/hosts",
+		HOSTNAME_FILE: c.Rootfs + "/etc/hostname",
+		SETUP_GATEWAY_FILE: c.Rootfs + "/etc/init/setup-gateway.conf",
 	}
-	if err := c.executeTemplate(INTERFACES_FILE, c.Rootfs + "/etc/network/interfaces"); err != nil {
-		return err
-	}
-	if err := c.executeTemplate(HOSTS_FILE, c.Rootfs + "/etc/hosts"); err != nil {
-		return err
-	}
-	if err := c.executeTemplate(HOSTNAME_FILE, c.Rootfs + "/etc/hostname"); err != nil {
-		return err
-	}
-	if err := c.executeTemplate(SETUP_GATEWAY_FILE, c.Rootfs + "/etc/init/setup-gateway.conf"); err != nil {
-		return err
+	for template, path := range configs {
+		if err := c.executeTemplate(template, path); err != nil {
+			return err
+		}	
 	}
 	return nil
 }
@@ -334,7 +331,7 @@ func monitorContainerForState(c *Container, state string, cs chan string) {
 	curState := c.state()
 	if curState == state {
 		if state == C_RUNNING {
-			time.Sleep(2 * time.Second) //wait extra time to make sure network is up
+			time.Sleep(3 * time.Second) //wait extra time to make sure network is up
 		}
 		cs <- curState
 		close(cs)
