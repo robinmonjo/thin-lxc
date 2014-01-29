@@ -5,7 +5,7 @@ set -e
 VERSION=0.3
 
 echo "Downloading sources"
-curl -sL https://github.com/robinmonjo/thin-lxc/archive/v$VERSION.tar.gz | tar -C /tmp -zxf -
+curl -sL https://github.com/robinmonjo/thin-lxc/archive/v$VERSION.tar.gz | tar -C /tmp -zxf - >/dev/null
 
 echo "Building ..."
 go build /tmp/thin-lxc-$VERSION/thin-lxc.go
