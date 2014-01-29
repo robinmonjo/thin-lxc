@@ -15,11 +15,9 @@ import(
 	"time"
 	"path"
 	"errors"
-	//"bufio"
-	//"io"
 )
 
-const VERSION = "0.2"
+const VERSION = "0.3"
 const CONTAINERS_ROOT_PATH = "/containers"
 
 /*
@@ -437,9 +435,6 @@ func main() {
 	} else {
 		log.Fatal("Unknown action ", *aFlag)
 	}
-
-
-
 }
 
 /*
