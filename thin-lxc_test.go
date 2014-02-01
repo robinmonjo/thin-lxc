@@ -12,15 +12,6 @@ import(
 
 const BASE_CONT_PATH = "/var/lib/lxc/baseCN"
 
-const ID_1 = "thin-lxc-test-c1"
-const NAME_1 = "thin-lxc-test-name-c1"
-
-const ID_2 = "thin-lxc-test-c2"
-const NAME_2 = "thin-lxc-test-name-c2"
-
-const ID_3 = "thin-lxc-test-c3"
-const NAME_3 = "thin-lxc-test-name-c3"
-
 const HOST_MNT_FOLDER = "/tmp/thin-lxc-test"
 const HOST_MNT_FILE = "/tmp/thin-lxc-test.conf"
 
@@ -31,65 +22,8 @@ const CONT_MNT_FILE = "/tmp/test.conf"
 Test bench
 */
 
-var c1 Container = Container {
-	BASE_CONT_PATH,
-	CONTAINERS_ROOT_PATH + "/" + ID_1,
-
-	CONTAINERS_ROOT_PATH + "/" + ID_1 + "/" + NAME_1,
-	CONTAINERS_ROOT_PATH + "/" + ID_1 + "/.wlayer",
-	CONTAINERS_ROOT_PATH + "/" + ID_1 + "/" + NAME_1 + "/rootfs",
-	CONTAINERS_ROOT_PATH + "/" + ID_1 + "/" + NAME_1 + "/config",
-
-	ID_1,
-	"10.0.3.245",
-	randomHwaddr(),
-	NAME_1,
-
-	0,
-	0,
-
-	map[string]string{},
-}
-
-var c2 Container = Container {
-	BASE_CONT_PATH,
-	CONTAINERS_ROOT_PATH + "/" + ID_2,
-
-	CONTAINERS_ROOT_PATH + "/" + ID_2 + "/" + NAME_2,
-	CONTAINERS_ROOT_PATH + "/" + ID_2 + "/.wlayer",
-	CONTAINERS_ROOT_PATH + "/" + ID_2 + "/" + NAME_2 + "/rootfs",
-	CONTAINERS_ROOT_PATH + "/" + ID_2 + "/" + NAME_2 + "/config",
-
-	ID_2,
-	"10.0.3.246",
-	randomHwaddr(),
-	NAME_2,
-
-	9999, 8888,
-
-	map[string]string{},
-}
-
-var c3 Container = Container {
-	BASE_CONT_PATH,
-	CONTAINERS_ROOT_PATH + "/" + ID_3,
-
-	CONTAINERS_ROOT_PATH + "/" + ID_3 + "/" + NAME_3,
-	CONTAINERS_ROOT_PATH + "/" + ID_3 + "/.wlayer",
-	CONTAINERS_ROOT_PATH + "/" + ID_3 + "/" + NAME_3 + "/rootfs",
-	CONTAINERS_ROOT_PATH + "/" + ID_3 + "/" + NAME_3 + "/config",
-
-	ID_3,
-	"10.0.3.247",
-	randomHwaddr(),
-	NAME_3,
-
-	3666, 8889,
-
-	map[string]string { HOST_MNT_FOLDER: CONT_MNT_FOLDER, HOST_MNT_FILE: CONT_MNT_FILE, },
-}
-
-var containers []Container = []Container{c1, c2, c3}
+var c1, c2, c3 *Container
+var containers []Container
 
 /*
 Failure
@@ -107,6 +41,13 @@ func Test_init(t *testing.T) {
 	os.MkdirAll(HOST_MNT_FOLDER, 0700)
 	file, _ := os.Create(HOST_MNT_FILE)
 	file.Close()
+
+	c1, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c11", "", "thin-lxc-test-name-c1", "10.0.3.245", "")
+	c2, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c12", "9999:8888", "thin-lxc-test-name-c2", "10.0.3.246", "")
+	c3, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c13", "3666:8889", "thin-lxc-test-name-c3", "10.0.3.247", HOST_MNT_FOLDER + ":" + CONT_MNT_FOLDER + "," + HOST_MNT_FILE + ":" + CONT_MNT_FILE)
+
+	containers = []Container{*c1, *c2, *c3}
+
 	rand.Seed(time.Now().Unix())
 	if fileExists(BASE_CONT_PATH) == false {
 		fmt.Println("Warning: a base container in /var/lib/lxc/baseCN should exists for tests to perform")

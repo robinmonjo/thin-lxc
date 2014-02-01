@@ -85,12 +85,8 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 
 ### TODO
 
-* use lxc-info to monitor change state (go routine) + remove time.Sleep in tests
-* add test for state monitoring function
-* bump version + clean way to build (release flags ect)
-* check system comptability (run test on target system and if it fails, announe not full comptability)
+* dhcp if no ip flag / name = id if no name specified
 * refactor (container in a separate package and testbench too)
-* dynamic dhcp + dynamic name / id or name + id (in a file of preconfigured name)
 * full network (host --> container hostname | container --> host hostname)
 * memory and cpu share limitation + test
 * disk limitation + test

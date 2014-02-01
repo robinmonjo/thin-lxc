@@ -28,7 +28,7 @@ const (
 	C_RUNNING = "RUNNING"
 	C_STOPPING = "STOPPING"
 	C_STOPPED = "STOPPED"
-	C_UNLNOWN = "UNKNOWN"
+	C_UNKNOWN = "UNKNOWN"
 )
 
 /*
@@ -67,6 +67,32 @@ type Container struct {
 	HostPort int
 
 	BindMounts map[string]string
+}
+
+func newContainer(cnRoot string, baseCn string, id string, ports string, name string, ip string, bindMounts string) (*Container, error) {
+	path := cnRoot + "/" + id
+	hostPort, port := parsePortsArg(ports)
+	c := &Container{
+		baseCn,                      
+		path,                            
+    
+		path + "/" + name,                
+		path + "/.wlayer",               
+		path + "/" + name + "/rootfs",   
+		path + "/" + name + "/config",      
+
+		id,                            
+		ip,                            
+		randomHwaddr(),                
+		name,                          
+		port,                          
+		hostPort,                      
+		parseBindMountsArg(bindMounts),
+	}
+	if fileExists(c.Rootfs) {
+		return nil, errors.New("Container with such id already exists")
+	}
+	return c, nil
 }
 
 func (c *Container) IpConfig() string {
@@ -201,7 +227,7 @@ func (c *Container) state() string {
 	stdout, err := exec.Command("lxc-info", "-n", c.Name).Output()
 	if err != nil {
 		log.Println("lxc-info failed", err)
-		return C_UNLNOWN
+		return C_UNKNOWN
 	}
 	return strings.Trim(strings.Split(strings.Split(string(stdout), "\n")[0], ":")[1], " ")
 }
@@ -346,31 +372,10 @@ Action methods
 */
 
 func create() {
-	path := CONTAINERS_ROOT_PATH + "/" + *idFlag
-	hostPort, port := parsePortsArg(*pFlag)
-
-	c := &Container{
-		*bFlag,                               //BaseContainerPath
-		path,                                 //Path
-    
-		path + "/" + *nFlag,                  //RoLayer 
-		path + "/.wlayer",                    //RwLayer
-		path + "/" + *nFlag + "/rootfs",      //Rootfs
-		path + "/" + *nFlag + "/config",      //ConfigPath
-
-		*idFlag,                              //Id
-		*ipFlag,                              //Ip
-		randomHwaddr(),                       //Hwaddr
-		*nFlag,                               //Name
-		port,                                 //Port
-		hostPort,                             //HostPort
-		parseBindMountsArg(*mFlag),           //BindMounts
+	c, err := newContainer(CONTAINERS_ROOT_PATH, *bFlag, *idFlag, *pFlag, *nFlag, *ipFlag, *mFlag)
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	if fileExists(c.Rootfs) {
-		log.Fatal("Container with such id already exists")
-	}
-	
 	if err := c.create(); err != nil {
 		log.Fatal("Unable to create container", err)
 	}
