@@ -17,7 +17,7 @@ import(
 	"errors"
 )
 
-const VERSION = "0.3"
+const VERSION = "0.4"
 const CONTAINERS_ROOT_PATH = "/containers"
 
 /*
