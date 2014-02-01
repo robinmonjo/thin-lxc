@@ -73,10 +73,18 @@ type Container struct {
 func newContainer(cnRoot string, baseCn string, id string, ports string, name string, ip string, bindMounts string) (*Container, error) {
 	path := cnRoot + "/" + id
 	hostPort, port := parsePortsArg(ports)
+
+	//if ip is defined, use static, else dhcp
 	inet := "dhcp"
 	if len(ip) > 0 {
 		inet = "manual"
 	}
+
+	//if no name provided, id == name
+	if len(name) == 0 {
+		name = id
+	}
+
 	c := &Container{
 		baseCn,                      
 		path,                            
