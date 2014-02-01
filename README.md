@@ -85,8 +85,7 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 
 ### TODO
 
-* dhcp if no ip flag / name = id if no name specified
-* refactor (container in a separate package and testbench too)
+* test static IP assignment
 * full network (host --> container hostname | container --> host hostname)
 * memory and cpu share limitation + test
 * disk limitation + test
