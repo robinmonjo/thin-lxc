@@ -22,7 +22,7 @@ const CONT_MNT_FILE = "/tmp/test.conf"
 Test bench
 */
 
-var c1, c2, c3 *Container
+var c1, c2, c3, c4 *Container
 var containers []Container
 
 /*
@@ -45,8 +45,9 @@ func Test_init(t *testing.T) {
 	c1, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c11", "", "thin-lxc-test-name-c1", "10.0.3.245", "")
 	c2, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c12", "9999:8888", "thin-lxc-test-name-c2", "10.0.3.246", "")
 	c3, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c13", "3666:8889", "thin-lxc-test-name-c3", "10.0.3.247", HOST_MNT_FOLDER + ":" + CONT_MNT_FOLDER + "," + HOST_MNT_FILE + ":" + CONT_MNT_FILE)
+	c4, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c14", "", "thin-lxc-test-name-c4", "", "")
 
-	containers = []Container{*c1, *c2, *c3}
+	containers = []Container{*c1, *c2, *c3, *c4}
 
 	rand.Seed(time.Now().Unix())
 	if fileExists(BASE_CONT_PATH) == false {

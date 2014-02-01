@@ -60,6 +60,7 @@ type Container struct {
 
 	Id string
 	Ip string
+	Inet string        //if ip, manual else dhcp
 	Hwaddr string
 	Name string
 
@@ -72,6 +73,10 @@ type Container struct {
 func newContainer(cnRoot string, baseCn string, id string, ports string, name string, ip string, bindMounts string) (*Container, error) {
 	path := cnRoot + "/" + id
 	hostPort, port := parsePortsArg(ports)
+	inet := "dhcp"
+	if len(ip) > 0 {
+		inet = "manual"
+	}
 	c := &Container{
 		baseCn,                      
 		path,                            
@@ -82,7 +87,8 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 		path + "/" + name + "/config",      
 
 		id,                            
-		ip,                            
+		ip,
+		inet,
 		randomHwaddr(),                
 		name,                          
 		port,                          
@@ -97,6 +103,10 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 
 func (c *Container) IpConfig() string {
 	return c.Ip + "/24"
+}
+
+func (c *Container) HasStaticIp() bool {
+	return len(c.Ip) > 0
 }
 
 func (c *Container) setupOnFS() error {
@@ -357,7 +367,7 @@ func monitorContainerForState(c *Container, state string, cs chan string) {
 	curState := c.state()
 	if curState == state {
 		if state == C_RUNNING {
-			time.Sleep(3 * time.Second) //wait extra time to make sure network is up
+			time.Sleep(5 * time.Second) //wait extra time to make sure network is up
 		}
 		cs <- curState
 		close(cs)
@@ -450,7 +460,9 @@ lxc.network.link=lxcbr0
 lxc.network.flags=up
 lxc.network.hwaddr = {{.Hwaddr}}
 lxc.utsname = {{.Name}}
-lxc.network.ipv4 = {{.IpConfig}}
+{{if .HasStaticIp}}
+	lxc.network.ipv4 = {{.IpConfig}}
+{{end}}
 
 lxc.devttydir = lxc
 lxc.tty = 4
@@ -502,7 +514,7 @@ const INTERFACES_FILE = `
 auto lo
 iface lo inet loopback
 auto eth0
-iface eth0 inet manual
+iface eth0 inet {{.Inet}}
 `
 
 //In container: /etc/hosts
