@@ -72,6 +72,9 @@ type Container struct {
 
 func newContainer(cnRoot string, baseCn string, id string, ports string, name string, ip string, bindMounts string) (*Container, error) {
 	path := cnRoot + "/" + id
+	if fileExists(path) {
+		return nil, errors.New("Container with such id already exists")
+	}
 	hostPort, port := parsePortsArg(ports)
 
 	//if ip is defined, use static, else dhcp
@@ -102,9 +105,6 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 		port,                          
 		hostPort,                      
 		parseBindMountsArg(bindMounts),
-	}
-	if fileExists(c.Rootfs) {
-		return nil, errors.New("Container with such id already exists")
 	}
 	return c, nil
 }
@@ -218,7 +218,7 @@ func (c *Container) prepareBindMounts() error {
 		}
 
 		var err error
-		if path.Ext(c.BindMounts[hostMntPath]) == "" {
+		if path.Ext(c.BindMounts[hostMntPath]) == "" { //no extensions considering it's a file
 			err = os.MkdirAll(c.BindMounts[hostMntPath], 0700)	
 		} else {
 			err = os.MkdirAll(path.Dir(c.BindMounts[hostMntPath]), 0700)
@@ -427,10 +427,10 @@ func reload() {
 		}
 		c, err := unmarshall(dir.Name())
 		if err != nil {
-			log.Fatal("Unable to unmarshall", c.Name)
+			log.Println("Unable to unmarshall", c.Name)
 		}
 		if err := c.reload(); err != nil {
-			log.Fatal("Unable to reload", c.Name)
+			log.Println("Unable to reload", c.Name)
 		}
 	}
 }
