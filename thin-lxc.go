@@ -15,6 +15,9 @@ import(
 	"time"
 	"path"
 	"errors"
+	"net/http"
+	"io"
+	"crypto/md5"
 )
 
 const VERSION = "0.4"
@@ -30,6 +33,10 @@ const (
 	C_STOPPED = "STOPPED"
 	C_UNKNOWN = "UNKNOWN"
 )
+
+const BASE_CN_URL = "https://s3-eu-west-1.amazonaws.com/thin-lxc/baseCN.tar.gz"
+const BASE_CN_PATH = "/var/lib/lxc"
+const BASE_CN_MD5_URL = "https://s3-eu-west-1.amazonaws.com/thin-lxc/md5-baseCN.txt"
 
 /*
 Flag parsing
@@ -111,6 +118,10 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 
 func (c *Container) IpConfig() string {
 	return c.Ip + "/24"
+}
+
+func (c *Container) FstabConfig() string {
+	return c.RoLayer + "/" + "fstab"
 }
 
 func (c *Container) HasStaticIp() bool {
@@ -385,6 +396,68 @@ func monitorContainerForState(c *Container, state string, cs chan string) {
 	monitorContainerForState(c, state, cs)
 }
 
+func downloadFromUrl(url string, path string, fileName string) error {
+	if  err := os.MkdirAll(path, 0700); err != nil {
+		return err
+	}
+	output, err := os.Create(path + "/" + fileName)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(output, resp.Body)
+	return err
+}
+
+func downloadBaseCN() error {
+	if fileExists(BASE_CN_PATH + "/baseCN") {
+		return nil
+	}
+	fmt.Print("First time thin-lxc, downloading base container ... ")
+	//download tar
+	if err := downloadFromUrl(BASE_CN_URL, BASE_CN_PATH, "baseCN.tar.gz"); err != nil {
+		return err
+	}
+	fmt.Println("Done")
+	fmt.Print("Checking base container integrity ... ")
+	//check md5
+	resp, err := http.Get(BASE_CN_MD5_URL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	expectedSum, err := ioutil.ReadAll(resp.Body)
+	f, err := os.Open(BASE_CN_PATH + "/baseCN.tar.gz")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	md5 := md5.New()
+	io.Copy(md5, f)
+	sum := fmt.Sprintf("%x", md5.Sum(nil))
+	if strings.Replace(string(expectedSum), "\n", "", -1) != sum {
+		return errors.New("MD5 sum check failed " + string(expectedSum) + " != " + sum)
+	}
+	fmt.Println("Done")
+
+	//untar
+	fmt.Print("Extracting base container to ", BASE_CN_PATH)
+	untar := exec.Command("sudo", "tar", "-C", BASE_CN_PATH, "-xf", BASE_CN_PATH + "/baseCN.tar.gz")
+	err = runCmdWithDetailedError(untar)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Done")
+	return nil
+}
+
 /*
 Action methods
 */
@@ -445,6 +518,12 @@ func main() {
 		fmt.Println(VERSION)
 		return
 	}
+
+	err := downloadBaseCN()
+	if err != nil {
+		log.Fatal("Something went wrong while downloading base container", err)
+	}
+
 	if *aFlag == "create" {
 		rand.Seed(time.Now().Unix())
 		create()
@@ -476,6 +555,7 @@ lxc.devttydir = lxc
 lxc.tty = 4
 lxc.pts = 1024
 lxc.rootfs = {{.Rootfs}}
+lxc.mount  = {{.FstabConfig}}
 lxc.arch = amd64
 lxc.cap.drop = sys_module mac_admin
 lxc.pivotdir = lxc_putold
