@@ -20,4 +20,4 @@ mknod -m 666 dev/ptmx c 5 2
 ````
 * Tar the container: `tar --numeric-owner -cpjf baseCN.tar.gz baseCN`
 * Calculate md5 hash of the tar: `md5sum baseCN.tar.gz`
-* Upload both the hash and the tar on thin-lxc bucket
+* Upload both the hash and the tar on thin-lxc bucket and make it public
