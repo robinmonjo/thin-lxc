@@ -417,7 +417,7 @@ func downloadFromUrl(url string, path string, fileName string) error {
 }
 
 func downloadBaseCN() error {
-	if fileExists(BASE_CN_PATH + "/baseCN") {
+	if fileExists(BASE_CN_PATH + "/baseCN/rootfs") {
 		return nil
 	}
 	fmt.Print("First time thin-lxc, downloading base container ... ")
@@ -448,7 +448,7 @@ func downloadBaseCN() error {
 	fmt.Println("Done")
 
 	//untar
-	fmt.Print("Extracting base container to ", BASE_CN_PATH)
+	fmt.Print("Extracting base container to ", BASE_CN_PATH, " ... ")
 	untar := exec.Command("sudo", "tar", "-C", BASE_CN_PATH, "-xf", BASE_CN_PATH + "/baseCN.tar.gz")
 	err = runCmdWithDetailedError(untar)
 	if err != nil {

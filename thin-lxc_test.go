@@ -38,6 +38,10 @@ Test bench setup
 */
 
 func Test_init(t *testing.T) {
+	if err := downloadBaseCN(); err != nil {
+		failTest(t, "Something went wrong while downloading base container", err)
+	}
+
 	os.MkdirAll(HOST_MNT_FOLDER, 0700)
 	file, _ := os.Create(HOST_MNT_FILE)
 	file.Close()
@@ -50,9 +54,6 @@ func Test_init(t *testing.T) {
 	containers = []Container{*c1, *c2, *c3, *c4}
 
 	rand.Seed(time.Now().Unix())
-	if fileExists(BASE_CONT_PATH) == false {
-		fmt.Println("Warning: a base container in /var/lib/lxc/baseCN should exists for tests to perform")
-	}
 }
 
 /*

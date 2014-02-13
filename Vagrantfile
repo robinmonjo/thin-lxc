@@ -6,7 +6,6 @@ Vagrant::Config.run do |config|
 
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -q -y golang lxc curl
-sudo lxc-create -t ubuntu -n baseCN #create a base container
 
 echo "--------------------------------------"
 echo "Ubuntu 12.04 installed with 3.8 kernel (AuFS and full lxc support)"
