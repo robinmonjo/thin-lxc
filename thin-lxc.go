@@ -45,9 +45,9 @@ Flag parsing
 var vFlag = flag.Bool("v", false, "print version and exit")
 
 var aFlag = flag.String("a", "", "action to perform")
-var idFlag = flag.String("id", "", "id of the container")
+var nFlag = flag.String("n", "", "name of the container")
+var hnFlag = flag.String("hn", "", "hostname of the container (hostname == name if name is nil)")
 var ipFlag = flag.String("ip", "", "ip of the container")
-var nFlag = flag.String("n", "", "name (and hostname) of the container")
 var bFlag = flag.String("b", "/var/lib/lxc/baseCN", "path to the base container rootfs")
 var pFlag = flag.String("p", "", "port to forward host_port:cont_port")
 var mFlag = flag.String("m", "", "bind mount of type path_host:cont_host,...")
@@ -65,7 +65,7 @@ type Container struct {
 	Rootfs string
 	ConfigPath string
 
-	Id string
+	HostName string
 	Ip string
 	Inet string        //if ip, manual else dhcp
 	Hwaddr string
@@ -77,10 +77,10 @@ type Container struct {
 	BindMounts map[string]string
 }
 
-func newContainer(cnRoot string, baseCn string, id string, ports string, name string, ip string, bindMounts string) (*Container, error) {
-	path := cnRoot + "/" + id
+func newContainer(baseCn string, name string, ports string, hostName string, ip string, bindMounts string) (*Container, error) {
+	path := CONTAINERS_ROOT_PATH + "/" + name
 	if fileExists(path) {
-		return nil, errors.New("Container with such id already exists")
+		return nil, errors.New("Container with such name already exists")
 	}
 	hostPort, port := parsePortsArg(ports)
 
@@ -90,9 +90,9 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 		inet = "manual"
 	}
 
-	//if no name provided, id == name
-	if len(name) == 0 {
-		name = id
+	//if no hostname provided, hostname == name
+	if len(hostName) == 0 {
+		hostName = name
 	}
 
 	c := &Container{
@@ -104,7 +104,7 @@ func newContainer(cnRoot string, baseCn string, id string, ports string, name st
 		path + "/" + name + "/rootfs",   
 		path + "/" + name + "/config",      
 
-		id,                            
+		hostName,                            
 		ip,
 		inet,
 		randomHwaddr(),                
@@ -309,8 +309,8 @@ func (c *Container) reload() error {
 /*
 Helper methods
 */
-func unmarshall(id string) (*Container, error) {
-	b, err := ioutil.ReadFile(CONTAINERS_ROOT_PATH + "/" + id + "/.metadata.json")
+func unmarshall(name string) (*Container, error) {
+	b, err := ioutil.ReadFile(CONTAINERS_ROOT_PATH + "/" + name + "/.metadata.json")
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +463,7 @@ Action methods
 */
 
 func create() {
-	c, err := newContainer(CONTAINERS_ROOT_PATH, *bFlag, *idFlag, *pFlag, *nFlag, *ipFlag, *mFlag)
+	c, err := newContainer(*bFlag, *nFlag, *pFlag, *hnFlag, *ipFlag, *mFlag)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -475,7 +475,7 @@ func create() {
 }
 
 func destroy() {
-	c, err := unmarshall(*idFlag)
+	c, err := unmarshall(*nFlag)
 	if err != nil {
 		log.Fatal("Unable to unmarchall container metadata", err)
 	}
@@ -488,7 +488,7 @@ func destroy() {
 }
 
 func reload() {
-	//after a reboot, AuFS mount and iptables rules will be deleted, reload will reset everything
+	//after a reboot, overlayfs mount and iptables rules will be deleted, reload will reset everything
 	dirs, err := ioutil.ReadDir(CONTAINERS_ROOT_PATH)
 	if err != nil {
 		log.Fatal(err)
@@ -540,13 +540,13 @@ func main() {
 template constants
 */
 
-// On host: /containers/id/image/config
+// On host: /containers/name/image/config
 const CONFIG_FILE = `
 lxc.network.type=veth
 lxc.network.link=lxcbr0
 lxc.network.flags=up
 lxc.network.hwaddr = {{.Hwaddr}}
-lxc.utsname = {{.Name}}
+lxc.utsname = {{.HostName}}
 {{if .HasStaticIp}}
 	lxc.network.ipv4 = {{.IpConfig}}
 {{end}}
@@ -607,12 +607,12 @@ iface eth0 inet {{.Inet}}
 
 //In container: /etc/hosts
 const HOSTS_FILE = `
-127.0.0.1 localhost {{.Name}}
+127.0.0.1 localhost {{.HostName}}
 `
 
 //In container: /etc/hostname
 const HOSTNAME_FILE = `
-{{.Name}}
+{{.HostName}}
 `
 
 //In container: /etc/init/setup-gateway.conf

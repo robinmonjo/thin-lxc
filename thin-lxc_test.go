@@ -46,10 +46,10 @@ func Test_init(t *testing.T) {
 	file, _ := os.Create(HOST_MNT_FILE)
 	file.Close()
 
-	c1, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c11", "", "thin-lxc-test-name-c1", "10.0.3.245", "")
-	c2, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c12", "9999:8888", "thin-lxc-test-name-c2", "10.0.3.246", "")
-	c3, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c13", "3666:8889", "thin-lxc-test-name-c3", "10.0.3.247", HOST_MNT_FOLDER + ":" + CONT_MNT_FOLDER + "," + HOST_MNT_FILE + ":" + CONT_MNT_FILE)
-	c4, _ = newContainer(CONTAINERS_ROOT_PATH, BASE_CONT_PATH, "thin-lxc-test-c14", "", "", "", "")
+	c1, _ = newContainer(BASE_CONT_PATH, "thin-lxc-test-c11", "", "hostnname-c1", "10.0.3.245", "")
+	c2, _ = newContainer(BASE_CONT_PATH, "thin-lxc-test-c12", "9999:8888", "hostname-c2", "10.0.3.246", "")
+	c3, _ = newContainer(BASE_CONT_PATH, "thin-lxc-test-c13", "3666:8889", "hostname-c3", "10.0.3.247", HOST_MNT_FOLDER + ":" + CONT_MNT_FOLDER + "," + HOST_MNT_FILE + ":" + CONT_MNT_FILE)
+	c4, _ = newContainer(BASE_CONT_PATH, "thin-lxc-test-c14", "", "", "", "")
 
 	containers = []Container{*c1, *c2, *c3, *c4}
 
@@ -88,7 +88,7 @@ func Test_marshalling(t *testing.T) {
 		c := containers[i]
 		c.setupOnFS()
 		c.marshall()
-		nc, _ := unmarshall(c.Id)
+		nc, _ := unmarshall(c.Name)
 		eq := reflect.DeepEqual(c, *nc)
 		c1.cleanupFS()
 		if eq == false {
