@@ -194,16 +194,16 @@ func (c *Container) configureFiles() error {
 	return nil
 }
 
-func (c *Container) aufsMount() error {
-	mnt := "br=" + c.WrLayer + "=rw:" + c.BaseContainerPath + "=ro"
-	return runCmdWithDetailedError(exec.Command("mount", "-t", "aufs", "-o", mnt, "none", c.RoLayer))
+func (c *Container) overlayfsMount() error {
+	mnt := "upperdir=" + c.WrLayer + ",lowerdir=" + c.BaseContainerPath
+	return runCmdWithDetailedError(exec.Command("mount", "-t", "overlayfs", "-o", mnt, "none", c.RoLayer))
 }
 
-func (c *Container) aufsUnmount(tryCount int) error {
+func (c *Container) overlayfsUnmount(tryCount int) error {
 	if err := runCmdWithDetailedError(exec.Command("umount", c.RoLayer)); err != nil {
 		if tryCount >= 0 {
 			time.Sleep(1 * time.Second)
-			c.aufsUnmount(tryCount - 1)
+			c.overlayfsUnmount(tryCount - 1)
 		} else {
 			return err
 		}
@@ -272,7 +272,7 @@ func (c *Container) create() error {
 	if err := c.marshall(); err != nil {
 		return err
 	}
-	if err := c.aufsMount(); err != nil {
+	if err := c.overlayfsMount(); err != nil {
 		return err
 	}
 	if err := c.prepareBindMounts(); err != nil {
@@ -291,7 +291,7 @@ func (c *Container) destroy() error {
 	if err := c.unforwardPort(); err != nil {
 		return err
 	}
-	if err := c.aufsUnmount(5); err != nil {
+	if err := c.overlayfsUnmount(5); err != nil {
 		return err
 	}
 	return c.cleanupFS()
@@ -299,7 +299,7 @@ func (c *Container) destroy() error {
 
 func (c *Container) reload() error {
 	if c.isMounted() == false {
-		if err := c.aufsMount(); err != nil {
+		if err := c.overlayfsMount(); err != nil {
 			return err
 		}
 	}

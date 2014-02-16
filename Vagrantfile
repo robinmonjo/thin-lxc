@@ -8,7 +8,7 @@ sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -q -y golang lxc curl
 
 echo "--------------------------------------"
-echo "Ubuntu 12.04 installed with 3.8 kernel (AuFS and full lxc support)"
+echo "Ubuntu 12.04 installed with 3.8 kernel (full lxc support)"
 echo "--------------------------------------"
 
 EOF

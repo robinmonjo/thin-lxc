@@ -98,21 +98,21 @@ func Test_marshalling(t *testing.T) {
 	fmt.Println("OK")
 }
 
-func Test_aufsMount(t *testing.T) {
-	fmt.Print("Testing aufs mount/umount ... ")
+func Test_overlayfsMount(t *testing.T) {
+	fmt.Print("Testing overlayfs mount/umount ... ")
 	for i := range containers {
 		c := containers[i]
 		c.setupOnFS()
 		if c.isMounted() {
-			failTest(t, "aufs mount already performed ?")
+			failTest(t, "overlayfs mount already performed ?")
 		}
-		c.aufsMount()
+		c.overlayfsMount()
 		if c.isMounted() == false {
-			failTest(t, "aufs mount failed")
+			failTest(t, "overlayfs mount failed")
 		}
-		c.aufsUnmount(1)
+		c.overlayfsUnmount(1)
 		if c.isMounted() {
-			failTest(t, "aufs unmount failed")
+			failTest(t, "overlayfs unmount failed")
 		}
 		c.cleanupFS()
 	}
@@ -233,7 +233,7 @@ func Test_reload(t *testing.T) {
 		if err := c.stop(); err != nil {
 			failTest(t, "Failed to stop container", err)
 		}
-		c.aufsUnmount(5)
+		c.overlayfsUnmount(5)
 		c.unforwardPort()
 	}
 

@@ -2,7 +2,7 @@
 
 `thin-lxc` is a command line tool written in Go that extends [LXC](http://linuxcontainers.org/). Goals are:
 
-* allow instant and lightweight creation of container using [AuFS](http://en.wikipedia.org/wiki/Aufs)
+* allow instant and lightweight creation of container using Overlayfs
 * automatically configure packet forwarding between host and containers (using iptables)
 * automatically configure bind mount of host file in containers
 * assign static ip to containers
@@ -55,7 +55,7 @@ This will create a container in `/containers`. File system will be like :
 			config   
 			fstab
 			rootfs/  
-		.wlayer/              #all write on container_name are forwarded here (AuFS magic)
+		.wlayer/              #all write on container_name are forwarded here (Overlayfs magic)
 		.metadata.json        #info about the containers (needed by thin-lxc)
 ````
 
@@ -73,17 +73,27 @@ This will basically just clean up the filesystem (`/containers/container_id`). I
 ### Reload
 `thin-lxc -a reload`
 
-After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be deleted. Running `reload` will re-setup everything in place. A good idea is to create an upstart script to launch this command at boot time. Note that this command only need to be run once.
+After a reboot, Overlayfs mounts and iptables rules (for packet forwarding) will be deleted. Running `reload` will re-setup everything in place. A good idea is to create an upstart script to launch this command at boot time. Note that this command only need to be run once.
 
 ### Limitations
 
-* host must be a ubuntu box and AuFS compatible
+* host must be a ubuntu box and Overlayfs compatible
 * use the default network bridge provided by LXC on ubuntu
 * ip address given to containers must be in 10.0.3.0/24
 * container must use upstart (not system.d)
 * containers will be created in `/containers`
 
 ### TODO
+
+* better FS hierarchie:
+/var/lib/lxc/<name> #read only layer
+/var/lib/thin-lxc/<name>/metadata
+                         rwlayer
+
+=> can use lxc-** -n without specifying -f
+   transparent to users
+
+* no more id - name but name + hostname (if different)
 
 * test static IP assignment
 * full network (host --> container hostname | container --> host hostname)
@@ -92,4 +102,3 @@ After a reboot, AuFS mounts and iptables rules (for packet forwarding) will be d
 * support multiple port forwarding
 * see if it's possible to redirect localhost:port to container:port in some way
 * allow use of DHCP for container ip assignment
-* configuration to choose where containers are stored
